@@ -1,15 +1,10 @@
 import {
-  Column,
   CreateDateColumn,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
-import { LanguageCode } from '../constants/language-code.ts';
-import type {
-  AbstractDto,
-  AbstractTranslationDto,
-} from './dto/abstract.dto.ts';
+import type { AbstractDto } from './dto/abstract.dto.ts';
 
 /**
  * Abstract Entity
@@ -27,16 +22,14 @@ export abstract class AbstractEntity<
   id!: Uuid;
 
   @CreateDateColumn({
-    type: 'timestamp',
+    type: 'timestamptz',
   })
   createdAt!: Date;
 
   @UpdateDateColumn({
-    type: 'timestamp',
+    type: 'timestamptz',
   })
   updatedAt!: Date;
-
-  translations?: AbstractTranslationEntity[];
 
   toDto(options?: O): DTO {
     const dtoClass = Object.getPrototypeOf(this).dtoClass;
@@ -49,12 +42,4 @@ export abstract class AbstractEntity<
 
     return new dtoClass(this, options);
   }
-}
-
-export class AbstractTranslationEntity<
-  DTO extends AbstractTranslationDto = AbstractTranslationDto,
-  O = never,
-> extends AbstractEntity<DTO, O> {
-  @Column({ type: 'enum', enum: LanguageCode })
-  languageCode!: LanguageCode;
 }

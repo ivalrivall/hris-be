@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 
 import { ApiConfigService } from '../../shared/services/api-config.service.ts';
+import { SharedModule } from '../../shared/shared.module.ts';
 import { UserModule } from '../user/user.module.ts';
 import { AuthController } from './auth.controller.ts';
 import { AuthService } from './auth.service.ts';
@@ -14,6 +15,7 @@ import { PublicStrategy } from './public.strategy.ts';
     forwardRef(() => UserModule),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
+      imports: [SharedModule],
       useFactory: (configService: ApiConfigService) => ({
         privateKey: configService.authConfig.privateKey,
         publicKey: configService.authConfig.publicKey,
@@ -31,6 +33,7 @@ import { PublicStrategy } from './public.strategy.ts';
       }),
       inject: [ApiConfigService],
     }),
+    SharedModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, PublicStrategy],

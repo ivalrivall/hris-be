@@ -1,22 +1,22 @@
-import { Injectable } from '@nestjs/common';
-import type { JwtService } from '@nestjs/jwt';
+import { Inject, Injectable } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 
 import { validateHash } from '../../common/utils.ts';
 import type { RoleType } from '../../constants/role-type.ts';
 import { TokenType } from '../../constants/token-type.ts';
 import { UserNotFoundException } from '../../exceptions/user-not-found.exception.ts';
-import type { ApiConfigService } from '../../shared/services/api-config.service.ts';
+import { ApiConfigService } from '../../shared/services/api-config.service.ts';
 import type { UserEntity } from '../user/user.entity.ts';
-import type { UserService } from '../user/user.service.ts';
+import { UserService } from '../user/user.service.ts';
 import { TokenPayloadDto } from './dto/token-payload.dto.ts';
 import type { UserLoginDto } from './dto/user-login.dto.ts';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private jwtService: JwtService,
-    private configService: ApiConfigService,
-    private userService: UserService,
+    @Inject(JwtService) private jwtService: JwtService,
+    @Inject(ApiConfigService) private configService: ApiConfigService,
+    @Inject(UserService) private userService: UserService,
   ) {}
 
   async createAccessToken(data: {
@@ -48,5 +48,15 @@ export class AuthService {
     }
 
     return user!;
+  }
+
+  async verifyToken(token: string): Promise<boolean> {
+    try {
+      const payload: unknown = await this.jwtService.verifyAsync(token);
+
+      return Boolean(payload);
+    } catch {
+      return false;
+    }
   }
 }

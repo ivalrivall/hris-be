@@ -4,11 +4,12 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Post,
   UploadedFile,
   Version,
 } from '@nestjs/common';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { RoleType } from '../../constants/role-type.ts';
 import { AuthUser } from '../../decorators/auth-user.decorator.ts';
@@ -18,21 +19,22 @@ import type { IFile } from '../../interfaces/IFile.ts';
 import type { Reference } from '../../types.ts';
 import { UserDto } from '../user/dtos/user.dto.ts';
 import type { UserEntity } from '../user/user.entity.ts';
-import type { UserService } from '../user/user.service.ts';
-import type { AuthService } from './auth.service.ts';
+import { UserService } from '../user/user.service.ts';
+import { AuthService } from './auth.service.ts';
 import { LoginPayloadDto } from './dto/login-payload.dto.ts';
-import type { UserLoginDto } from './dto/user-login.dto.ts';
+import { UserLoginDto } from './dto/user-login.dto.ts';
 import type { UserRegisterDto } from './dto/user-register.dto.ts';
 
 @Controller('auth')
 @ApiTags('auth')
 export class AuthController {
   constructor(
-    private userService: UserService,
-    private authService: AuthService,
+    @Inject(UserService) private userService: UserService,
+    @Inject(AuthService) private authService: AuthService,
   ) {}
 
   @Post('login')
+  @ApiBody({ type: UserLoginDto })
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: LoginPayloadDto,
@@ -64,9 +66,7 @@ export class AuthController {
       file,
     );
 
-    return createdUser.toDto({
-      isActive: true,
-    });
+    return createdUser.toDto();
   }
 
   @Version('1')
@@ -76,5 +76,18 @@ export class AuthController {
   @ApiOkResponse({ type: UserDto, description: 'current user info' })
   getCurrentUser(@AuthUser() user: UserEntity): UserDto {
     return user.toDto();
+  }
+
+  @Post('verify_token')
+  @HttpCode(HttpStatus.OK)
+  @Auth([RoleType.USER, RoleType.ADMIN])
+  @ApiOkResponse({
+    type: Boolean,
+    description: 'Token validation result',
+  })
+  async verifyToken(): Promise<boolean> {
+    // Since the Auth decorator ensures a valid token is present,
+    // if we reach this point the token is already validated
+    return true;
   }
 }

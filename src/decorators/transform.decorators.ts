@@ -171,9 +171,19 @@ export function S3UrlParser(): PropertyDecorator {
 }
 
 export function PhoneNumberSerializer(): PropertyDecorator {
-  return Transform(
-    (params) => parsePhoneNumberWithError(params.value as string).number,
-  );
+  return Transform((params) => {
+    if (typeof params.value !== 'string' || params.value.trim() === '') {
+      return undefined;
+    }
+
+    try {
+      return parsePhoneNumberWithError(params.value).number;
+    } catch (error) {
+      // Handle parsing errors, e.g., log them or return undefined
+      console.error('Phone number parsing error:', error);
+      return undefined;
+    }
+  });
 }
 
 export function LinkCleanupTransform(options?: {

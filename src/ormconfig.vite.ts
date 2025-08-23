@@ -1,10 +1,12 @@
-import './src/boilerplate.polyfill';
+import './boilerplate.polyfill';
 
 import dotenv from 'dotenv';
 import { DataSource } from 'typeorm';
 
-import { UserSubscriber } from './src/entity-subscribers/user-subscriber';
-import { SnakeNamingStrategy } from './src/snake-naming.strategy';
+import { UserSubscriber } from './entity-subscribers/user-subscriber';
+import { AbsenceEntity } from './modules/absence/absence.entity';
+import { UserEntity } from './modules/user/user.entity';
+import { SnakeNamingStrategy } from './snake-naming.strategy';
 
 dotenv.config();
 
@@ -17,9 +19,6 @@ export const dataSource = new DataSource({
   database: process.env.DB_DATABASE,
   namingStrategy: new SnakeNamingStrategy(),
   subscribers: [UserSubscriber],
-  entities: [
-    'src/modules/**/*.entity{.ts,.js}',
-    'src/modules/**/*.view-entity{.ts,.js}',
-  ],
-  migrations: ['src/database/migrations/*{.ts,.js}'],
+  entities: [UserEntity, AbsenceEntity],
+  migrations: [],
 });

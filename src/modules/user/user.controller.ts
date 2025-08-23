@@ -3,6 +3,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Query,
   ValidationPipe,
 } from '@nestjs/common';
@@ -17,32 +18,22 @@ import {
   Auth,
   UUIDParam,
 } from '../../decorators/http.decorators.ts';
-import { UseLanguageInterceptor } from '../../interceptors/language-interceptor.service.ts';
-import type { TranslationService } from '../../shared/services/translation.service.ts';
 import { UserDto } from './dtos/user.dto.ts';
 import type { UsersPageOptionsDto } from './dtos/users-page-options.dto.ts';
-import type { UserEntity } from './user.entity.ts';
-import type { UserService } from './user.service.ts';
+import type { UserEntity } from './user.entity';
+import { UserService } from './user.service.ts';
 
 @Controller('users')
 @ApiTags('users')
 export class UserController {
-  constructor(
-    private userService: UserService,
-    private readonly translationService: TranslationService,
-  ) {}
+  constructor(@Inject(UserService) private userService: UserService) {}
 
   @Get('admin')
   @Auth([RoleType.USER])
   @HttpCode(HttpStatus.OK)
-  @UseLanguageInterceptor()
   async admin(@AuthUser() user: UserEntity) {
-    const translation = await this.translationService.translate(
-      'admin.keywords.admin',
-    );
-
     return {
-      text: `${translation} ${user.firstName}`,
+      text: `Welcome ${user.name}`,
     };
   }
 

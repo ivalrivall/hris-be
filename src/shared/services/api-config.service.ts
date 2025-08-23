@@ -1,17 +1,17 @@
-import path from 'node:path';
-
-import { Injectable } from '@nestjs/common';
-import type { ConfigService } from '@nestjs/config';
+import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { ThrottlerOptions } from '@nestjs/throttler';
 import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import parse from 'parse-duration';
 
 import { UserSubscriber } from '../../entity-subscribers/user-subscriber.ts';
+import { AbsenceEntity } from '../../modules/absence/absence.entity';
+import { UserEntity } from '../../modules/user/user.entity';
 import { SnakeNamingStrategy } from '../../snake-naming.strategy.ts';
 
 @Injectable()
 export class ApiConfigService {
-  constructor(private configService: ConfigService) {}
+  constructor(@Inject(ConfigService) private configService: ConfigService) {}
 
   get isDevelopment(): boolean {
     return this.nodeEnv === 'development';
@@ -98,11 +98,12 @@ export class ApiConfigService {
 
   get postgresConfig(): TypeOrmModuleOptions {
     const entities = [
-      path.join(import.meta.dirname, `../../modules/**/*.entity{.ts,.js}`),
-      path.join(import.meta.dirname, `../../modules/**/*.view-entity{.ts,.js}`),
+      AbsenceEntity,
+      UserEntity,
+      // Add any additional entities or view-entities here
     ];
-    const migrations = [
-      path.join(import.meta.dirname, `../../database/migrations/*{.ts,.js}`),
+    const migrations: any[] = [
+      // Add any additional migrations here
     ];
 
     return {
