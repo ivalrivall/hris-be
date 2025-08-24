@@ -153,7 +153,7 @@ export class UserService {
 
     await this.userRepository.save(userEntity);
 
-    // Emit event for downstream consumers (e.g., MongoDB projector)
+    // Emit event for downstream consumers
     const payload = {
       id: userEntity.id,
       type: 'user.updated',
