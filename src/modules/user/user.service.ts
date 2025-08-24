@@ -3,6 +3,7 @@ import {
   Injectable,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { FindOptionsWhere } from 'typeorm';
 import { Repository } from 'typeorm';
@@ -14,8 +15,8 @@ import { UserNotFoundException } from '../../exceptions/user-not-found.exception
 import type { IFile } from '../../interfaces/IFile.ts';
 import { AwsS3Service } from '../../shared/services/aws-s3.service.ts';
 import { ValidatorService } from '../../shared/services/validator.service.ts';
+import { USER_EVENTS_RMQ } from '../../shared/shared.module.ts';
 import type { Reference } from '../../types.ts';
-
 import type { CreateUserDto } from './dtos/create-user.dto.ts';
 import type { UserDto } from './dtos/user.dto.ts';
 import type { UserUpdateDto } from './dtos/user-update.dto.ts';
@@ -29,6 +30,7 @@ export class UserService {
     private userRepository: Repository<UserEntity>,
     @Inject(ValidatorService) private validatorService: ValidatorService,
     @Inject(AwsS3Service) private awsS3Service: AwsS3Service,
+    @Inject(USER_EVENTS_RMQ) private userEventsClient: ClientProxy,
   ) {}
 
   /**
@@ -65,6 +67,11 @@ export class UserService {
   ): Promise<UserEntity> {
     // Supports admin-created users
     const user = this.userRepository.create(userRegisterDto as any);
+
+    // Explicitly assign optional phone if provided
+    if (userRegisterDto.phone) {
+      user.phone = userRegisterDto.phone;
+    }
 
     if (file && !this.validatorService.isImage(file.mimetype)) {
       throw new FileNotImageException();
@@ -145,6 +152,19 @@ export class UserService {
     }
 
     await this.userRepository.save(userEntity);
+
+    // Emit event for downstream consumers (e.g., MongoDB projector)
+    const payload = {
+      id: userEntity.id,
+      type: 'user.updated',
+      at: new Date().toISOString(),
+    };
+    // Fire-and-forget: do not block HTTP response
+    this.userEventsClient
+      .emit('user.updated', { ...payload, user: userEntity.toDto() })
+      .subscribe({
+        error: () => {},
+      });
 
     return userEntity.toDto();
   }

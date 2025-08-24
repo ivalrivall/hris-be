@@ -16,10 +16,13 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import compression from 'compression';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { initializeTransactionalContext, addTransactionalDataSource } from 'typeorm-transactional';
+import { DataSource } from 'typeorm';
+import {
+  addTransactionalDataSource,
+  initializeTransactionalContext,
+} from 'typeorm-transactional';
 
 import { AppModule } from './app.module.ts';
-import { DataSource } from 'typeorm';
 import { HttpExceptionFilter } from './filters/bad-request.filter.ts';
 import { QueryFailedFilter } from './filters/query-failed.filter.ts';
 import { setupSwagger } from './setup-swagger.ts';
@@ -35,7 +38,7 @@ export async function bootstrap(): Promise<NestExpressApplication> {
     {
       cors: {
         origin: process.env.CORS_ORIGINS?.split(',') ?? [
-          'http://localhost:3000',
+          'http://localhost:30019',
           'http://localhost:5173',
         ],
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],

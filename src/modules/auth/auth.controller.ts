@@ -2,12 +2,13 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Inject,
   Post,
 } from '@nestjs/common';
-import { ApiBody, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOkResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
 import { RoleType } from '../../constants/role-type.ts';
 import { AuthUser } from '../../decorators/auth-user.decorator.ts';
@@ -51,6 +52,7 @@ export class AuthController {
 
   @Get('me')
   @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
   @Auth([RoleType.USER, RoleType.ADMIN])
   @ApiOkResponse({ type: UserDto, description: 'current user info' })
   /**
@@ -67,6 +69,7 @@ export class AuthController {
 
   @Post('verify_token')
   @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
   @Auth([RoleType.USER, RoleType.ADMIN])
   @ApiOkResponse({
     type: Boolean,
@@ -83,6 +86,27 @@ export class AuthController {
   async verifyToken(): Promise<boolean> {
     // Since the Auth decorator ensures a valid token is present,
     // if we reach this point the token is already validated
+    return true;
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @Auth([RoleType.USER, RoleType.ADMIN])
+  @ApiOkResponse({ type: Boolean, description: 'Logout result' })
+  /**
+   * Logs out the current user by advising the client to discard the JWT.
+   *
+   * @returns The logout operation result.
+   */
+  async logout(
+    @Headers('authorization') authorization?: string,
+  ): Promise<boolean> {
+    const token = authorization?.startsWith('Bearer ')
+      ? authorization.slice(7)
+      : undefined;
+    await this.authService.logout(token);
+
     return true;
   }
 }

@@ -901,7 +901,7 @@ export class UserNotFoundException extends NotFoundException {
 // Use UPPERCASE for environment variables
 DATABASE_URL=postgresql://user:pass@localhost:5432/db
 JWT_SECRET=your-secret-key
-CORS_ORIGINS=http://localhost:3000,http://localhost:3001
+CORS_ORIGINS=http://localhost:30019,http://localhost:30019
 
 // Access in code
 process.env.DATABASE_URL

@@ -178,8 +178,8 @@ yarn nest:start:debug
 > **Note**: If you're on Linux and see an `ENOSPC` error, you must [increase the number of available file watchers](https://stackoverflow.com/questions/22475849/node-js-error-enospc#answer-32600959).
 
 The development server will be available at:
-- **Application**: `http://localhost:3000`
-- **API Documentation**: `http://localhost:3000/documentation`
+- **Application**: `http://localhost:30019`
+- **API Documentation**: `http://localhost:30019/documentation`
 
 ## Project Structure
 
@@ -246,7 +246,7 @@ Create a `.env` file based on `.env.example`:
 ```env
 # Application
 NODE_ENV=development
-PORT=3000
+PORT=30019
 
 # Database
 DB_TYPE=postgres
@@ -262,7 +262,7 @@ JWT_SECRET=your-super-secret-jwt-key
 JWT_EXPIRATION_TIME=3600
 
 # CORS
-CORS_ORIGINS=http://localhost:3000,http://localhost:3001
+CORS_ORIGINS=http://localhost:30019,http://localhost:30019
 
 # API Documentation
 ENABLE_DOCUMENTATION=true
@@ -288,10 +288,10 @@ NATS_PORT=4222
 
 ```bash
 # Start all services (app + database)
-PORT=3000 docker-compose up
+PORT=30019 docker-compose up
 
 # Start in detached mode
-PORT=3000 docker-compose up -d
+PORT=30019 docker-compose up -d
 
 # View logs
 docker-compose logs -f

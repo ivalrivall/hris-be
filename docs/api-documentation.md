@@ -61,9 +61,9 @@ The API is documented using OpenAPI 3.0 specifications with automatic generation
 
 When the application is running in development mode:
 
-- **Swagger UI**: `http://localhost:3000/documentation`
-- **OpenAPI JSON**: `http://localhost:3000/documentation-json`
-- **OpenAPI YAML**: `http://localhost:3000/documentation-yaml`
+- **Swagger UI**: `http://localhost:30019/documentation`
+- **OpenAPI JSON**: `http://localhost:30019/documentation-json`
+- **OpenAPI YAML**: `http://localhost:30019/documentation-yaml`
 
 ### Swagger Configuration
 
@@ -98,7 +98,7 @@ export function setupSwagger(app: INestApplication): void {
 
 ### Base URL and Versioning
 
-- **Base URL**: `http://localhost:3000`
+- **Base URL**: `http://localhost:30019`
 - **API Versioning**: Enabled through NestJS versioning
 - **Global Prefix**: Can be configured (currently no global prefix)
 
@@ -497,7 +497,7 @@ CORS is configured to allow specific origins:
 // main.ts
 const app = await NestFactory.create<NestExpressApplication>(AppModule, {
   cors: {
-    origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
+    origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:30019'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true,
   }
@@ -544,7 +544,7 @@ Supported languages:
 
 ### Using Swagger UI
 
-1. Navigate to `http://localhost:3000/documentation`
+1. Navigate to `http://localhost:30019/documentation`
 2. Click "Authorize" and enter your JWT token
 3. Test endpoints directly from the interface
 
@@ -552,16 +552,16 @@ Supported languages:
 
 ```bash
 # Login
-curl -X POST http://localhost:3000/auth/login \
+curl -X POST http://localhost:30019/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"password123"}'
 
 # Get user (with token)
-curl -X GET http://localhost:3000/users/uuid \
+curl -X GET http://localhost:30019/users/uuid \
   -H "Authorization: Bearer your-jwt-token"
 
 # Create post
-curl -X POST http://localhost:3000/posts \
+curl -X POST http://localhost:30019/posts \
   -H "Authorization: Bearer your-jwt-token" \
   -H "Content-Type: application/json" \
   -d '{
@@ -572,7 +572,7 @@ curl -X POST http://localhost:3000/posts \
 
 ### Using Postman
 
-1. Import the OpenAPI specification from `http://localhost:3000/documentation-json`
+1. Import the OpenAPI specification from `http://localhost:30019/documentation-json`
 2. Set up environment variables for base URL and authentication token
 3. Use the pre-configured requests
 
