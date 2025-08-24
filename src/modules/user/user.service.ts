@@ -1,4 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { FindOptionsWhere } from 'typeorm';
 import { Repository } from 'typeorm';
@@ -11,8 +15,10 @@ import type { IFile } from '../../interfaces/IFile.ts';
 import { AwsS3Service } from '../../shared/services/aws-s3.service.ts';
 import { ValidatorService } from '../../shared/services/validator.service.ts';
 import type { Reference } from '../../types.ts';
-import type { UserRegisterDto } from '../auth/dto/user-register.dto.ts';
+
+import type { CreateUserDto } from './dtos/create-user.dto.ts';
 import type { UserDto } from './dtos/user.dto.ts';
+import type { UserUpdateDto } from './dtos/user-update.dto.ts';
 import type { UsersPageOptionsDto } from './dtos/users-page-options.dto.ts';
 import { UserEntity } from './user.entity';
 
@@ -54,10 +60,11 @@ export class UserService {
 
   @Transactional()
   async createUser(
-    userRegisterDto: UserRegisterDto,
+    userRegisterDto: CreateUserDto,
     file?: Reference<IFile>,
   ): Promise<UserEntity> {
-    const user = this.userRepository.create(userRegisterDto);
+    // Supports admin-created users
+    const user = this.userRepository.create(userRegisterDto as any);
 
     if (file && !this.validatorService.isImage(file.mimetype)) {
       throw new FileNotImageException();
@@ -91,6 +98,74 @@ export class UserService {
     if (!userEntity) {
       throw new UserNotFoundException();
     }
+
+    return userEntity.toDto();
+  }
+
+  @Transactional()
+  async updateUser(
+    userId: Uuid,
+    updateUserDto: UserUpdateDto,
+  ): Promise<UserDto> {
+    const userEntity = await this.findOne({ id: userId });
+
+    if (!userEntity) {
+      throw new UserNotFoundException();
+    }
+
+    if (updateUserDto.phone) {
+      userEntity.phone = updateUserDto.phone;
+    }
+
+    if (updateUserDto.password != null) {
+      // Validate presence of confirmation
+      if (updateUserDto.confirmPassword == null) {
+        throw new UnprocessableEntityException([
+          {
+            property: 'confirmPassword',
+            constraints: {
+              isDefined:
+                'confirmPassword must be provided when password is set',
+            },
+          },
+        ] as unknown as any);
+      }
+
+      // Ensure they match (DTO already validates, this is defensive)
+      if (updateUserDto.password !== updateUserDto.confirmPassword) {
+        throw new UnprocessableEntityException([
+          {
+            property: 'confirmPassword',
+            constraints: { sameAs: 'confirmPassword must match password' },
+          },
+        ] as unknown as any);
+      }
+
+      userEntity.password = updateUserDto.password;
+    }
+
+    await this.userRepository.save(userEntity);
+
+    return userEntity.toDto();
+  }
+
+  @Transactional()
+  async updateUserAvatar(
+    userId: Uuid,
+    file: Reference<IFile>,
+  ): Promise<UserDto> {
+    const userEntity = await this.findOne({ id: userId });
+
+    if (!userEntity) {
+      throw new UserNotFoundException();
+    }
+
+    if (!this.validatorService.isImage(file.mimetype)) {
+      throw new FileNotImageException();
+    }
+
+    userEntity.avatar = await this.awsS3Service.uploadImage(file);
+    await this.userRepository.save(userEntity);
 
     return userEntity.toDto();
   }

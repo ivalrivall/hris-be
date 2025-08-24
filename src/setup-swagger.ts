@@ -56,8 +56,14 @@ Routes is following REST standard (Richardson level 3)
 
   const document = SwaggerModule.createDocument(app, documentBuilder.build());
   SwaggerModule.setup('documentation', app, document, {
+    customSiteTitle: 'HRIS',
+    customJs: [],
+    explorer: true,
     swaggerOptions: {
+      filter: true,
+      showRequestDuration: true,
       persistAuthorization: true,
+      tryItOutEnabled: true,
     },
   });
 

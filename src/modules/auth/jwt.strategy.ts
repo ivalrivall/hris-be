@@ -29,14 +29,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException();
     }
 
+    // First find user by ID only
     const user = await this.userService.findOne({
-      // FIXME: issue with type casts
       id: args.userId as never,
-      role: args.role,
     });
 
     if (!user) {
       throw new UnauthorizedException();
+    }
+
+    // Verify token role matches user's actual role
+    if (user.role !== args.role) {
+      throw new UnauthorizedException('Token role does not match user role');
     }
 
     return user;

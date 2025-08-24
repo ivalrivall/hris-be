@@ -19,6 +19,15 @@ export class AwsS3Service {
     this.s3 = new S3({
       apiVersion: config.bucketApiVersion,
       region: config.bucketRegion,
+      endpoint: config.endpoint,
+      forcePathStyle: config.forcePathStyle,
+      credentials:
+        config.accessKeyId && config.secretAccessKey
+          ? {
+              accessKeyId: config.accessKeyId,
+              secretAccessKey: config.secretAccessKey,
+            }
+          : undefined,
     });
   }
 
@@ -30,8 +39,10 @@ export class AwsS3Service {
     await this.s3.putObject({
       Bucket: this.configService.awsS3Config.bucketName,
       Body: file.buffer,
-      ACL: 'public-read',
       Key: key,
+      ...(this.configService.awsS3Config.useAclPublicRead
+        ? { ACL: 'public-read' }
+        : {}),
     });
 
     return key;

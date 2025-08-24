@@ -6,66 +6,69 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 
+import { RoleType } from '../../constants/role-type.ts';
 import type { PageDto } from '../../common/dto/page.dto.ts';
 import { AbsenceEntity } from './absence.entity.ts';
 import { AbsenceDto } from './dtos/absence.dto.ts';
 import type { AbsencePageOptionsDto } from './dtos/absence-page-options.dto.ts';
 import type { CreateAbsenceDto } from './dtos/create-absence.dto.ts';
 import type { UpdateAbsenceDto } from './dtos/update-absence.dto.ts';
+import { UserEntity } from '../user/user.entity.ts';
 
 @Injectable()
 export class AbsenceService {
   constructor(
     @InjectRepository(AbsenceEntity)
     private absenceRepository: Repository<AbsenceEntity>,
+    @InjectRepository(UserEntity)
+    private userRepository: Repository<UserEntity>,
   ) {}
 
   async createAbsence(
     userId: Uuid,
     createAbsenceDto: CreateAbsenceDto,
   ): Promise<AbsenceEntity> {
-    const now = new Date(); // current time
+    // Verify that the user has the USER role
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
 
-    // Define start and end of "today" in UTC
-    const startOfTodayUTC = new Date(
-      Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate(),
-        0,
-        0,
-        0,
-        0,
-      ),
-    );
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
-    const endOfTodayUTC = new Date(
-      Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate(),
-        23,
-        59,
-        59,
-        999,
-      ),
-    );
+    if (user.role !== RoleType.USER) {
+      throw new BadRequestException(
+        'Only users with USER role can create absences',
+      );
+    }
+
+    const now = new Date(); // current time in Asia/Jakarta timezone
+
+    // Get the start of today in Asia/Jakarta timezone
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+
+    // Get the end of today in Asia/Jakarta timezone
+    const endOfToday = new Date(now);
+    endOfToday.setHours(23, 59, 59, 999);
+
     const existingAbsence = await this.absenceRepository.findOne({
       where: {
         userId,
-        createdAt: Between(startOfTodayUTC, endOfTodayUTC),
+        createdAt: Between(startOfToday, endOfToday),
       },
     });
 
-    if (existingAbsence) {
+    if (existingAbsence && existingAbsence.status === createAbsenceDto.status) {
       throw new BadRequestException(
-        'Absence already exists for this user on this date',
+        `Absence with status '${createAbsenceDto.status}' already exists for this employee today`,
       );
     }
 
     const absence = this.absenceRepository.create({
       userId,
-      ...createAbsenceDto,
+      status: createAbsenceDto.status,
     });
 
     return this.absenceRepository.save(absence);

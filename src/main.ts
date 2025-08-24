@@ -1,5 +1,8 @@
 import './boilerplate.polyfill';
 
+// Set timezone to Asia/Jakarta
+process.env.TZ = 'Asia/Jakarta';
+
 import {
   ClassSerializerInterceptor,
   HttpStatus,
@@ -13,9 +16,10 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import compression from 'compression';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { initializeTransactionalContext } from 'typeorm-transactional';
+import { initializeTransactionalContext, addTransactionalDataSource } from 'typeorm-transactional';
 
 import { AppModule } from './app.module.ts';
+import { DataSource } from 'typeorm';
 import { HttpExceptionFilter } from './filters/bad-request.filter.ts';
 import { QueryFailedFilter } from './filters/query-failed.filter.ts';
 import { setupSwagger } from './setup-swagger.ts';
@@ -39,6 +43,9 @@ export async function bootstrap(): Promise<NestExpressApplication> {
       },
     },
   );
+
+  // Register TypeORM DataSource for typeorm-transactional
+  addTransactionalDataSource(app.get(DataSource));
   app.enable('trust proxy'); // only if you're behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, etc)
   app.use(helmet());
   // app.setGlobalPrefix('/api'); use api as global prefix if you don't have subdomain

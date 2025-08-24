@@ -11,7 +11,7 @@ import { SnakeNamingStrategy } from '../../snake-naming.strategy.ts';
 
 @Injectable()
 export class ApiConfigService {
-  constructor(@Inject(ConfigService) private configService: ConfigService) {}
+  constructor(@Inject(ConfigService) private configService: ConfigService) { }
 
   get isDevelopment(): boolean {
     return this.nodeEnv === 'development';
@@ -128,6 +128,12 @@ export class ApiConfigService {
       bucketRegion: this.getString('AWS_S3_BUCKET_REGION'),
       bucketApiVersion: this.getString('AWS_S3_API_VERSION'),
       bucketName: this.getString('AWS_S3_BUCKET_NAME'),
+      endpoint: this.getString('AWS_S3_ENDPOINT'),
+      forcePathStyle: this.getBoolean('AWS_S3_FORCE_PATH_STYLE'),
+      accessKeyId: this.getString('AWS_S3_ACCESS_KEY_ID'),
+      secretAccessKey: this.getString('AWS_S3_SECRET_ACCESS_KEY'),
+      publicBaseUrl: this.getString('AWS_S3_PUBLIC_BASE_URL'),
+      useAclPublicRead: this.getBoolean('AWS_S3_USE_ACL_PUBLIC_READ'),
     };
   }
 
