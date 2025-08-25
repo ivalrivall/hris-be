@@ -127,21 +127,18 @@ export class UserService {
           .getMany(),
       ]);
 
-      lastInByUserIdDto = lastIns.reduce<
-        Record<string, ReturnType<AbsenceEntity['toDto']>>
-      >((acc, a) => {
-        acc[a.userId] = a.toDto();
+      // Build maps without reduce for readability
+      lastInByUserIdDto = {};
 
-        return acc;
-      }, {});
+      for (const a of lastIns) {
+        lastInByUserIdDto[a.userId] = a.toDto();
+      }
 
-      lastOutByUserIdDto = lastOuts.reduce<
-        Record<string, ReturnType<AbsenceEntity['toDto']>>
-      >((acc, a) => {
-        acc[a.userId] = a.toDto();
+      lastOutByUserIdDto = {};
 
-        return acc;
-      }, {});
+      for (const a of lastOuts) {
+        lastOutByUserIdDto[a.userId] = a.toDto();
+      }
     }
 
     return items.toPageDto(pageMetaDto, {
@@ -150,18 +147,90 @@ export class UserService {
     });
   }
 
+  // Calculate totals since user createdAt:
+  // - totalWorkDay: count of Mon–Fri days from createdAt to today
+  // - totalPresence: days with at least one IN
+  // - totalAbsent: working days with no IN
+  // - totalLate: days where first IN after 08:00
   async getUser(userId: Uuid): Promise<UserDto> {
-    const queryBuilder = this.userRepository.createQueryBuilder('user');
-
-    queryBuilder.where('user.id = :userId', { userId });
-
-    const userEntity = await queryBuilder.getOne();
+    const userEntity = await this.userRepository.findOne({ where: { id: userId } });
 
     if (!userEntity) {
       throw new UserNotFoundException();
     }
 
-    return userEntity.toDto();
+    // Fetch all absence records for the user (all time)
+    const absences = await this.absenceRepository
+      .createQueryBuilder('a')
+      .where('a.userId = :userId', { userId })
+      .orderBy('a.createdAt', 'ASC')
+      .getMany();
+
+    // Map of YYYY-MM-DD -> first IN Date for that day (weekdays only)
+    const firstInByDay = new Map<string, Date>();
+
+    const fmt = (d: Date): string => {
+      const y = d.getFullYear();
+      const m = (d.getMonth() + 1).toString().padStart(2, '0');
+      const dd = d.getDate().toString().padStart(2, '0');
+      return `${y}-${m}-${dd}`;
+    };
+
+    for (const a of absences) {
+      const d = a.createdAt;
+      const dow = d.getDay(); // 0=Sun,6=Sat
+      if (dow === 0 || dow === 6) continue; // Exclude weekends
+
+      if (a.status === AbsenceStatus.IN) {
+        const key = fmt(d);
+        const prev = firstInByDay.get(key);
+        if (!prev || d < prev) {
+          firstInByDay.set(key, d);
+        }
+      }
+    }
+
+    // Count working days from user.createdAt to today (inclusive)
+    const start = new Date(userEntity.createdAt);
+    start.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let totalWorkDay = 0;
+    let totalAbsent = 0;
+    let totalPresence = 0;
+    let totalLate = 0;
+
+    for (
+      const d = new Date(start.getTime());
+      d.getTime() <= today.getTime();
+      d.setDate(d.getDate() + 1)
+    ) {
+      const dow = d.getDay();
+      if (dow === 0 || dow === 6) continue; // skip weekends
+
+      totalWorkDay++;
+      const key = fmt(d);
+      const firstIn = firstInByDay.get(key);
+      if (firstIn) {
+        totalPresence++;
+        // Late if first IN strictly after 08:00:00 local time (Asia/Jakarta)
+        const threshold = new Date(firstIn);
+        threshold.setHours(8, 0, 0, 0);
+        if (firstIn.getTime() > threshold.getTime()) {
+          totalLate++;
+        }
+      } else {
+        totalAbsent++;
+      }
+    }
+
+    return userEntity.toDto({
+      totalWorkDay,
+      totalPresence,
+      totalAbsent,
+      totalLate,
+    } as never);
   }
 
   async getUserWithLastAbsence(userId: Uuid): Promise<UserDto> {

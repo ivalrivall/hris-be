@@ -13,7 +13,6 @@ import {
   Post,
   Query,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
   ValidationPipe,
 } from '@nestjs/common';
@@ -29,9 +28,6 @@ import {
   Auth,
   UUIDParam,
 } from '../../decorators/http.decorators.ts';
-import { Roles } from '../../decorators/roles.decorator.ts';
-// import { AuthGuard } from '../../guards/auth.guard';
-import { RolesGuard } from '../../guards/roles.guard';
 import type { IFile } from '../../interfaces/IFile';
 import { CreateUserDto } from './dtos/create-user.dto.ts';
 import { UserDto } from './dtos/user.dto.ts';
@@ -88,9 +84,7 @@ export class UserController {
   }
 
   @Get(':id')
-  @Auth([RoleType.ADMIN])
-  @Roles(RoleType.ADMIN)
-  @UseGuards(RolesGuard)
+  @Auth([RoleType.ADMIN, RoleType.USER])
   @HttpCode(HttpStatus.OK)
   @ApiUUIDParam('id')
   @ApiResponse({
@@ -104,7 +98,18 @@ export class UserController {
    * @param userId The unique identifier of the user to retrieve.
    * @returns A UserDto object containing the user's data.
    */
-  getUser(@UUIDParam('id') userId: Uuid): Promise<UserDto> {
+  getUser(
+    @UUIDParam('id') userId: Uuid,
+    @AuthUser() authUser: UserEntity,
+  ): Promise<UserDto> {
+    // Only admins can update any user; regular users can only update themselves
+    console.info('userId', userId);
+
+    if (authUser.role !== RoleType.ADMIN && authUser.id !== userId) {
+      // Forbidden
+      throw new ForbiddenException('You can only get detail your own account');
+    }
+
     return this.userService.getUser(userId);
   }
 

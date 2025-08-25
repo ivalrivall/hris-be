@@ -4,6 +4,7 @@ import {
   ClassField,
   EmailFieldOptional,
   EnumFieldOptional,
+  NumberFieldOptional,
   PhoneFieldOptional,
   StringField,
   StringFieldOptional,
@@ -38,11 +39,27 @@ export class UserDto extends AbstractDto {
   @ClassField(() => AbsenceDto, { required: false, nullable: true })
   lastOut?: AbsenceDto | null;
 
+  @NumberFieldOptional()
+  totalWorkDay?: number;
+
+  @NumberFieldOptional()
+  totalPresence?: number;
+
+  @NumberFieldOptional()
+  totalAbsent?: number;
+
+  @NumberFieldOptional()
+  totalLate?: number;
+
   constructor(
     user: UserEntity,
     options?: {
       lastInByUserIdDto?: Record<string, AbsenceDto>;
       lastOutByUserIdDto?: Record<string, AbsenceDto>;
+      totalWorkDay?: number;
+      totalPresence?: number;
+      totalAbsent?: number;
+      totalLate?: number;
     },
   ) {
     super(user);
@@ -54,5 +71,9 @@ export class UserDto extends AbstractDto {
     this.position = user.position;
     this.lastIn = options?.lastInByUserIdDto?.[user.id] ?? null;
     this.lastOut = options?.lastOutByUserIdDto?.[user.id] ?? null;
+    this.totalWorkDay = options?.totalWorkDay ?? 0;
+    this.totalPresence = options?.totalPresence ?? 0;
+    this.totalAbsent = options?.totalAbsent ?? 0;
+    this.totalLate = options?.totalLate ?? 0;
   }
 }
