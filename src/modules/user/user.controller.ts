@@ -141,7 +141,28 @@ export class UserController {
       throw new ForbiddenException('You can only update your own account');
     }
 
-    return this.userService.updateUser(userId, userUpdateDto);
+    const updated = await this.userService.updateUser(userId, userUpdateDto);
+
+    // Send push notification when a regular user updates their own profile
+    // Topic format: user.<ROLE>
+    if (authUser.role === RoleType.USER && authUser.id === userId) {
+      try {
+        // Lazy import to avoid hard dependency here
+        const { FirebaseService: firebaseService } = await import(
+          '../firebase/firebase.service.ts'
+        );
+        const firebase = new firebaseService();
+        await firebase.sendTopicNotification(
+          `user.ADMIN`,
+          `Profile of ${authUser.name} updated`,
+          'Profile information was updated successfully.',
+        );
+      } catch {
+        console.error('Failed to send push notification');
+      }
+    }
+
+    return updated;
   }
 
   @Patch(':id/avatar')

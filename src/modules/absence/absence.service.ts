@@ -6,14 +6,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 
-import { RoleType } from '../../constants/role-type.ts';
 import type { PageDto } from '../../common/dto/page.dto.ts';
+import { RoleType } from '../../constants/role-type.ts';
+import { UserEntity } from '../user/user.entity.ts';
 import { AbsenceEntity } from './absence.entity.ts';
 import { AbsenceDto } from './dtos/absence.dto.ts';
 import type { AbsencePageOptionsDto } from './dtos/absence-page-options.dto.ts';
 import type { CreateAbsenceDto } from './dtos/create-absence.dto.ts';
 import type { UpdateAbsenceDto } from './dtos/update-absence.dto.ts';
-import { UserEntity } from '../user/user.entity.ts';
 
 @Injectable()
 export class AbsenceService {
@@ -128,5 +128,28 @@ export class AbsenceService {
     }
 
     await this.absenceRepository.remove(absenceEntity);
+  }
+
+  async getTodayAbsenceForUser(userId: Uuid): Promise<AbsenceEntity[]> {
+    const now = new Date(); // current time in Asia/Jakarta timezone
+
+    // Get the start of today in Asia/Jakarta timezone
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+
+    // Get the end of today in Asia/Jakarta timezone
+    const endOfToday = new Date(now);
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const queryBuilder = this.absenceRepository
+      .createQueryBuilder('absence')
+      .where('absence.userId = :userId', { userId })
+      .andWhere('absence.createdAt BETWEEN :startOfToday AND :endOfToday', {
+        startOfToday,
+        endOfToday,
+      })
+      .orderBy('absence.createdAt', 'DESC');
+
+    return queryBuilder.getMany();
   }
 }

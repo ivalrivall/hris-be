@@ -14,11 +14,7 @@ export function AuthGuard(
   class CustomAuthGuard extends NestAuthGuard(strategies) {
     // Delegate auth to passport strategy (JwtStrategy or PublicStrategy)
     // Ensure unauthorized requests throw proper 401 instead of generic Error
-    handleRequest<TUser = any>(
-      err: any,
-      user: any,
-      info: any,
-    ): TUser {
+    handleRequest<TUser = any>(err: any, user: any, _info: any): TUser {
       if (err) {
         throw err;
       }

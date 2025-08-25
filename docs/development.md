@@ -70,6 +70,7 @@ ENABLE_ORM_LOGS=true
 If you prefer MySQL/MariaDB over PostgreSQL:
 
 1. Update your `.env` file:
+
 ```env
 # Database Configuration
 DB_TYPE=mysql
@@ -83,6 +84,7 @@ DB_ALLOW_EMPTY_PASSWORD=yes
 ```
 
 2. Update `ormconfig.ts`:
+
 ```typescript
 export const dataSource = new DataSource({
   type: 'mysql', // Change from 'postgres' to 'mysql'
@@ -96,6 +98,7 @@ export const dataSource = new DataSource({
 ```
 
 3. Clear existing migrations and regenerate:
+
 ```bash
 # Remove existing migrations
 rm -rf src/database/migrations/*
@@ -107,6 +110,7 @@ yarn migration:generate src/database/migrations/InitialMigration
 ### Database Operations
 
 > **Note**: For TypeORM v0.3+, the migration commands have changed:
+>
 > - `migration:create` now requires the full path to the migration file
 > - `migration:generate` requires the `-d` flag to specify the DataSource configuration
 > - All commands now use the DataSource configuration instead of the old ormconfig.ts format
@@ -114,6 +118,7 @@ yarn migration:generate src/database/migrations/InitialMigration
 #### Migration Examples
 
 **Creating a new migration manually:**
+
 ```bash
 # Create a new migration file
 yarn migration:create src/database/migrations/add-gifts-table
@@ -122,6 +127,7 @@ yarn migration:create src/database/migrations/add-gifts-table
 ```
 
 **Generating migration from entity changes:**
+
 ```bash
 # 1. Create or modify your entity (e.g., src/modules/gift/gift.entity.ts)
 # 2. Generate migration based on entity changes
@@ -133,6 +139,7 @@ yarn migration:run
 ```
 
 **Complete workflow example:**
+
 ```bash
 # 1. Create entity
 # Edit: src/modules/gift/gift.entity.ts
@@ -178,6 +185,7 @@ yarn nest:start:debug
 > **Note**: If you're on Linux and see an `ENOSPC` error, you must [increase the number of available file watchers](https://stackoverflow.com/questions/22475849/node-js-error-enospc#answer-32600959).
 
 The development server will be available at:
+
 - **Application**: `http://localhost:30019`
 - **API Documentation**: `http://localhost:30019/documentation`
 
@@ -221,16 +229,16 @@ Use NestJS CLI for rapid development:
 yarn global add @nestjs/cli
 
 # Generate a new module
-nest generate module feature-name
+nest g -c awesome-nestjs-schematics module feature-name
 
 # Generate a new service
-nest generate service feature-name
+nest g -c awesome-nestjs-schematics service feature-name
 
 # Generate a new controller
-nest generate controller feature-name
+nest g -c awesome-nestjs-schematics controller feature-name
 
 # Generate a complete resource (module, service, controller, DTOs)
-nest generate resource feature-name
+nest g -c awesome-nestjs-schematics resource feature-name
 
 # Use project-specific generator
 yarn generate service feature-name
@@ -312,6 +320,7 @@ The `docker-compose.yml` includes:
 - **adminer**: Database administration tool (available at `http://localhost:8080`)
 
 For MySQL development, use:
+
 ```bash
 docker-compose -f docker-compose_mysql.yml up
 ```
@@ -319,6 +328,7 @@ docker-compose -f docker-compose_mysql.yml up
 ## Development Workflow
 
 1. **Feature Development**:
+
    ```bash
    # Create feature branch
    git checkout -b feature/new-feature
@@ -332,6 +342,7 @@ docker-compose -f docker-compose_mysql.yml up
    ```
 
 2. **Code Quality**:
+
    ```bash
    # Run linting
    yarn lint
@@ -347,8 +358,13 @@ docker-compose -f docker-compose_mysql.yml up
    ```
 
 3. **Database Changes**:
+
    ```bash
    # Create/modify entities
+
+   # Build project
+   yarn build:prod
+
    # Generate migration
    yarn migration:generate src/database/migrations/FeatureName
 
@@ -401,11 +417,13 @@ yarn test:debug -- user.service.spec.ts
 ### Development Performance
 
 1. **Use Vite for Development**:
+
    - Faster startup times
    - Hot module replacement
    - Optimized bundling
 
 2. **Database Query Optimization**:
+
    ```bash
    # Enable query logging
    ENABLE_ORM_LOGS=true
@@ -416,6 +434,7 @@ yarn test:debug -- user.service.spec.ts
    ```
 
 3. **Memory Management**:
+
    ```bash
    # Monitor memory usage
    node --inspect src/main.ts

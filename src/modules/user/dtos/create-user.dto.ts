@@ -26,4 +26,7 @@ export class CreateUserDto {
 
   @EnumField(() => RoleType)
   readonly role!: RoleType;
+
+  @StringField({ minLength: 2, maxLength: 100 })
+  readonly position!: string;
 }

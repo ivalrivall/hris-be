@@ -32,7 +32,7 @@ import { AbsencePageOptionsDto } from './dtos/absence-page-options.dto.ts';
 import { CreateAbsenceDto } from './dtos/create-absence.dto.ts';
 import { UpdateAbsenceDto } from './dtos/update-absence.dto.ts';
 
-@Controller('absences')
+@Controller('v1/absences')
 @ApiTags('absences')
 export class AbsenceController {
   constructor(private absenceService: AbsenceService) {}
@@ -60,6 +60,20 @@ export class AbsenceController {
     @Query() pageOptionsDto: AbsencePageOptionsDto,
   ): Promise<PageDto<AbsenceDto>> {
     return this.absenceService.getAllAbsence(pageOptionsDto);
+  }
+
+  @Get('today/me')
+  @Auth([RoleType.USER])
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: [AbsenceDto] })
+  async getTodayAbsenceForCurrentUser(
+    @AuthUser() user: UserEntity,
+  ): Promise<AbsenceDto[]> {
+    const absenceEntities = await this.absenceService.getTodayAbsenceForUser(
+      user.id,
+    );
+
+    return absenceEntities.map((entity) => entity.toDto());
   }
 
   @Get(':id')

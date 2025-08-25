@@ -18,6 +18,7 @@ import { HealthCheckerModule } from './modules/health-checker/health-checker.mod
 import { UserModule } from './modules/user/user.module.ts';
 import { ApiConfigService } from './shared/services/api-config.service.ts';
 import { SharedModule } from './shared/shared.module.ts';
+import { FirebaseModule } from './modules/firebase/firebase.module.ts';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { SharedModule } from './shared/shared.module.ts';
     }),
     HealthCheckerModule,
     AbsenceModule,
+    FirebaseModule,
   ],
   providers: [],
 })

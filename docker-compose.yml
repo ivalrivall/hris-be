@@ -3,13 +3,15 @@ services:
   app:
     env_file:
       - .env
-    container_name: awesome_nest_boilerplate
+    container_name: hrisdexagroup
     restart: always
     build: .
     ports:
       - "$PORT:$PORT"
     links:
       - postgres
+      - mongodb
+      - rabbitmq
   postgres:
     image: postgres
     container_name: postgres
@@ -25,18 +27,31 @@ services:
       - ./init-data.sh:/docker-entrypoint-initdb.d/init-data.sh
     env_file:
       - .env
-  pgadmin:
-    container_name: pgadmin
-    image: dpage/pgadmin4
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    restart: always
     ports:
-      - "8080:80"
+      - "27017:27017"
     volumes:
-      - /data/pgadmin:/root/.pgadmin
+      - mongo:/data/db
     env_file:
       - .env
-    links:
-      - postgres
+  rabbitmq:
+    image: rabbitmq:3-alpine
+    container_name: rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+    volumes:
+      - rabbitmq:/var/lib/rabbitmq
+    env_file:
+      - .env
 
 volumes:
   postgres:
+    driver: local
+  mongo:
+    driver: local
+  rabbitmq:
     driver: local

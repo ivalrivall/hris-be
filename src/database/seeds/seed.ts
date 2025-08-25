@@ -7,10 +7,9 @@ async function seed() {
   await dataSource.destroy();
 }
 
-seed()
-  .then(() => {
-    console.info('Seeding complete!');
-  })
-  .catch((err: any) => {
-    console.error('Seeding failed:', err);
-  });
+try {
+  await seed();
+  console.info('Seeding complete');
+} catch (error: unknown) {
+  console.error('Seeding failed:', error);
+}

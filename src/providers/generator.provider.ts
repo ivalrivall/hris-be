@@ -10,12 +10,35 @@ export class GeneratorProvider {
     return `${GeneratorProvider.uuid()}.${ext}`;
   }
 
+  private static getAwsS3Config() {
+    const publicBaseUrl = process.env.AWS_S3_PUBLIC_BASE_URL;
+    const bucketName = process.env.AWS_S3_BUCKET_NAME;
+
+    if (!publicBaseUrl) {
+      throw new TypeError('AWS_S3_PUBLIC_BASE_URL is required');
+    }
+
+    if (!bucketName) {
+      throw new TypeError('AWS_S3_BUCKET_NAME is required');
+    }
+
+    // Normalize base URL by removing trailing slashes
+    const normalizedBase = publicBaseUrl.replace(/\/+$/, '');
+
+    return { publicBaseUrl: normalizedBase, bucketName } as const;
+  }
+
   static getS3PublicUrl(key: string): string {
     if (!key) {
       throw new TypeError('key is required');
     }
 
-    return `https://s3.${process.env.AWS_S3_BUCKET_NAME_REGION}.amazonaws.com/${process.env.AWS_S3_BUCKET_NAME}/${key}`;
+    const { publicBaseUrl } = this.getAwsS3Config();
+
+    // Avoid duplicate slashes and ensure key has no leading slash
+    const normalizedKey = String(key).replace(/^\/+/, '');
+
+    return `${publicBaseUrl}/${encodeURI(normalizedKey)}`;
   }
 
   static getS3Key(publicUrl: string): string {
@@ -23,15 +46,20 @@ export class GeneratorProvider {
       throw new TypeError('key is required');
     }
 
-    const exec = new RegExp(
-      `(?<=https://s3.${process.env.AWS_S3_BUCKET_NAME_REGION}.amazonaws.com/${process.env.AWS_S3_BUCKET_NAME}/).*`,
-    ).exec(publicUrl);
+    const { publicBaseUrl, bucketName } = this.getAwsS3Config();
+    const prefix = `${publicBaseUrl}/${bucketName}/`;
 
-    if (!exec) {
+    if (!publicUrl.startsWith(prefix)) {
       throw new TypeError('publicUrl is invalid');
     }
 
-    return exec[0];
+    const key = publicUrl.substring(prefix.length);
+
+    if (!key) {
+      throw new TypeError('publicUrl is invalid');
+    }
+
+    return decodeURI(key);
   }
 
   static generateVerificationCode(): string {

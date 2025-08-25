@@ -8,13 +8,19 @@ import {
   Inject,
   Post,
 } from '@nestjs/common';
-import { ApiBody, ApiOkResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOkResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { RoleType } from '../../constants/role-type.ts';
 import { AuthUser } from '../../decorators/auth-user.decorator.ts';
 import { Auth } from '../../decorators/http.decorators.ts';
 import { UserDto } from '../user/dtos/user.dto.ts';
 import type { UserEntity } from '../user/user.entity.ts';
+import { UserService } from '../user/user.service.ts';
 import { AuthService } from './auth.service.ts';
 import { LoginPayloadDto } from './dto/login-payload.dto.ts';
 import { UserLoginDto } from './dto/user-login.dto.ts';
@@ -22,7 +28,10 @@ import { UserLoginDto } from './dto/user-login.dto.ts';
 @Controller('v1/auth')
 @ApiTags('auth')
 export class AuthController {
-  constructor(@Inject(AuthService) private authService: AuthService) {}
+  constructor(
+    @Inject(AuthService) private authService: AuthService,
+    @Inject(UserService) private userService: UserService,
+  ) {}
 
   @Post('login')
   @ApiBody({ type: UserLoginDto })
@@ -56,37 +65,10 @@ export class AuthController {
   @Auth([RoleType.USER, RoleType.ADMIN])
   @ApiOkResponse({ type: UserDto, description: 'current user info' })
   /**
-   * Returns the current user data.
-   *
-   * @remarks
-   * Only accessible when logged in.
-   *
-   * @returns The current user data.
+   * Returns the current user data including last absence.
    */
-  getCurrentUser(@AuthUser() user: UserEntity): UserDto {
-    return user.toDto();
-  }
-
-  @Post('verify_token')
-  @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
-  @Auth([RoleType.USER, RoleType.ADMIN])
-  @ApiOkResponse({
-    type: Boolean,
-    description: 'Token validation result',
-  })
-  /**
-   * Verifies the current token.
-   *
-   * @remarks
-   * Returns true when the token is valid.
-   *
-   * @returns The token validation result.
-   */
-  async verifyToken(): Promise<boolean> {
-    // Since the Auth decorator ensures a valid token is present,
-    // if we reach this point the token is already validated
-    return true;
+  async getCurrentUser(@AuthUser() user: UserEntity): Promise<UserDto> {
+    return this.userService.getUserWithLastAbsence(user.id);
   }
 
   @Post('logout')

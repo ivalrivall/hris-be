@@ -27,6 +27,9 @@ export class UserEntity extends AbstractEntity<UserDto> {
   @Column({ nullable: true, type: 'varchar' })
   avatar!: string | null;
 
+  @Column({ nullable: true, type: 'varchar' })
+  position!: string | null;
+
   @OneToMany(() => AbsenceEntity, (absenceEntity) => absenceEntity.user)
   absences?: AbsenceEntity[];
 }

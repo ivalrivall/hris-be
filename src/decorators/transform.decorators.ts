@@ -154,6 +154,11 @@ export function S3UrlParser(): PropertyDecorator {
   return Transform((params) => {
     const key = params.value as string;
 
+    // Gracefully handle null/undefined/empty values
+    if (!key) {
+      return key;
+    }
+
     switch (params.type) {
       case TransformationType.CLASS_TO_PLAIN: {
         return GeneratorProvider.getS3PublicUrl(key);

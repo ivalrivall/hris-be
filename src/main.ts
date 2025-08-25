@@ -41,7 +41,7 @@ export async function bootstrap(): Promise<NestExpressApplication> {
           'http://localhost:30019',
           'http://localhost:5173',
         ],
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
         credentials: true,
       },
     },
@@ -108,4 +108,4 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   return app;
 }
 
-export const viteNodeApp = bootstrap();
+export const viteNodeApp = await bootstrap();
