@@ -1,14 +1,32 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+
 import { Injectable, Logger } from '@nestjs/common';
-import * as admin from 'firebase-admin';
+import {
+  applicationDefault,
+  cert,
+  getApp,
+  getApps,
+  initializeApp,
+  ServiceAccount,
+} from 'firebase-admin/app';
+import {
+  AndroidConfig,
+  ApnsConfig,
+  getMessaging,
+  Message,
+  Messaging,
+  WebpushConfig,
+} from 'firebase-admin/messaging';
 
 // Options for sending a notification. Allows platform-specific overrides.
 interface INotificationOptions {
   title: string;
   body: string;
   data?: Record<string, string>;
-  android?: admin.messaging.AndroidConfig;
-  apns?: admin.messaging.ApnsConfig;
-  webpush?: admin.messaging.WebpushConfig;
+  android?: AndroidConfig;
+  apns?: ApnsConfig;
+  webpush?: WebpushConfig;
 }
 
 @Injectable()
@@ -19,7 +37,24 @@ export class FirebaseService {
 
   constructor() {
     try {
-      if (admin.apps.length > 0) {
+      // Safely detect if Firebase Admin is already initialized
+      let hasApp = false;
+
+      try {
+        const apps = getApps();
+
+        if (apps && apps.length > 0) {
+          hasApp = true;
+        } else {
+          // Try retrieving default app; will throw if not initialized
+          getApp();
+          hasApp = true;
+        }
+      } catch {
+        hasApp = false;
+      }
+
+      if (hasApp) {
         // Already initialized elsewhere
         this.initialized = true;
 
@@ -30,29 +65,66 @@ export class FirebaseService {
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
       let privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
-      if (!projectId || !clientEmail || !privateKey) {
-        this.logger.warn(
-          'Firebase credentials are not fully set; push notifications are disabled.',
-        );
+      // 1) Try local JSON credentials file in repo root
+      const localJsonPath = path.resolve(
+        process.cwd(),
+        'hrisdexagroup-firebase-adminsdk-fbsvc-a117a3f1f8.json',
+      );
+
+      if (!this.initialized && fs.existsSync(localJsonPath)) {
+        try {
+          const serviceAccount = JSON.parse(fs.readFileSync(localJsonPath));
+          initializeApp({
+            credential: cert(serviceAccount as ServiceAccount),
+          });
+          this.initialized = true;
+          this.logger.log(
+            'Firebase Admin initialized with local JSON credentials',
+          );
+        } catch {
+          this.logger.warn('Failed to initialize with local JSON credentials');
+        }
+      }
+
+      if (this.initialized) {
+        return;
+      }
+
+      // 2) Try explicit env vars
+      if (projectId && clientEmail && privateKey) {
+        // Support private keys with literal \n in env
+        if (privateKey.includes(String.raw`\n`)) {
+          privateKey = privateKey.replaceAll(String.raw`\n`, '\n');
+        }
+
+        initializeApp({
+          credential: cert({
+            projectId,
+            clientEmail,
+            privateKey,
+          }),
+        });
+
+        this.initialized = true;
+        this.logger.log('Firebase Admin initialized with env variables');
 
         return;
       }
 
-      // Support private keys with literal \n in env
-      if (privateKey.includes(String.raw`\n`)) {
-        privateKey = privateKey.replaceAll(String.raw`\n`, '\n');
+      // 3) Fallback: application default credentials (respects GOOGLE_APPLICATION_CREDENTIALS)
+      try {
+        initializeApp({
+          credential: applicationDefault(),
+        });
+        this.initialized = true;
+        this.logger.log(
+          'Firebase Admin initialized with application default credentials',
+        );
+      } catch {
+        this.logger.warn(
+          'Firebase credentials are not set and application default credentials are unavailable; push notifications are disabled.',
+        );
       }
-
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId,
-          clientEmail,
-          privateKey,
-        }),
-      });
-
-      this.initialized = true;
-      this.logger.log('Firebase Admin initialized');
     } catch (error) {
       this.logger.error(
         'Failed to initialize Firebase Admin SDK',
@@ -63,13 +135,13 @@ export class FirebaseService {
   }
 
   // Get messaging instance if initialized
-  private get messaging(): admin.messaging.Messaging | null {
+  private get messaging(): Messaging | null {
     if (!this.initialized) {
       return null;
     }
 
     try {
-      return admin.messaging();
+      return getMessaging();
     } catch (error) {
       this.logger.error(
         'Failed to access Firebase Messaging',
@@ -83,17 +155,11 @@ export class FirebaseService {
   // Build message base with optional platform-specific configs
   private buildMessageBase(
     options: INotificationOptions,
-  ): Pick<
-    admin.messaging.Message,
-    'notification' | 'data' | 'android' | 'apns' | 'webpush'
-  > {
+  ): Pick<Message, 'notification' | 'data' | 'android' | 'apns' | 'webpush'> {
     const { title, body, data, android, apns, webpush } = options;
 
     const base: Partial<
-      Pick<
-        admin.messaging.Message,
-        'notification' | 'data' | 'android' | 'apns' | 'webpush'
-      >
+      Pick<Message, 'notification' | 'data' | 'android' | 'apns' | 'webpush'>
     > = {
       notification: { title, body },
     };
@@ -115,7 +181,7 @@ export class FirebaseService {
     }
 
     return base as Pick<
-      admin.messaging.Message,
+      Message,
       'notification' | 'data' | 'android' | 'apns' | 'webpush'
     >;
   }
@@ -134,7 +200,7 @@ export class FirebaseService {
     }
 
     try {
-      const message: admin.messaging.Message = {
+      const message: Message = {
         ...this.buildMessageBase(options),
         token,
       };
@@ -167,7 +233,7 @@ export class FirebaseService {
     }
 
     try {
-      const message: admin.messaging.Message = {
+      const message: Message = {
         ...this.buildMessageBase(options),
         topic,
       };

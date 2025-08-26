@@ -11,7 +11,7 @@
   },
   "scripts": {
     "build:prod": "nest build",
-    "start:dev": "vite --config vite.config.mts",
+    "start:dev": "NODE_OPTIONS=--max-old-space-size=512 vite --config vite.config.mts",
     "nest:start": "nest start ./src/main.ts",
     "deno:start": "deno run --allow-read --allow-env --allow-ffi --allow-net ./src/main.ts",
     "nest:start:dev": "ENABLE_DOCUMENTATION=true nest start --watch",
