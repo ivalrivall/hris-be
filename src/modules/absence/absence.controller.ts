@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -55,11 +56,29 @@ export class AbsenceController {
 
   @Get()
   @Auth([RoleType.ADMIN])
+  @HttpCode(HttpStatus.OK)
   @ApiPageResponse({ type: AbsenceDto })
-  async getAbsences(
+  async getAllAbsences(
     @Query() pageOptionsDto: AbsencePageOptionsDto,
   ): Promise<PageDto<AbsenceDto>> {
     return this.absenceService.getAllAbsence(pageOptionsDto);
+  }
+
+  @Get('user/:id')
+  @Auth([RoleType.ADMIN, RoleType.USER])
+  @HttpCode(HttpStatus.OK)
+  @ApiPageResponse({ type: AbsenceDto })
+  @ApiUUIDParam('id')
+  async getAllAbsencesOfUser(
+    @UUIDParam('id') userId: Uuid,
+    @Query() pageOptionsDto: AbsencePageOptionsDto,
+    @AuthUser() authUser: UserEntity,
+  ): Promise<PageDto<AbsenceDto>> {
+    if (authUser.role !== RoleType.ADMIN && authUser.id !== userId) {
+      throw new ForbiddenException('You can only get detail your own account');
+    }
+
+    return this.absenceService.getAllAbsenceOfUser(userId, pageOptionsDto);
   }
 
   @Get('today/me')

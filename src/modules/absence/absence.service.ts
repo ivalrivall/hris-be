@@ -74,10 +74,26 @@ export class AbsenceService {
     return this.absenceRepository.save(absence);
   }
 
-  async getAllAbsence(
+  async getAllAbsenceOfUser(
+    userId: Uuid,
     pageOptionsDto: AbsencePageOptionsDto,
   ): Promise<PageDto<AbsenceDto>> {
-    const queryBuilder = this.absenceRepository.createQueryBuilder('absence');
+    const queryBuilder = this.absenceRepository
+      .createQueryBuilder('absence')
+      .where('absence.userId = :userId', { userId });
+
+    if (pageOptionsDto.startDate) {
+      const start = new Date(pageOptionsDto.startDate);
+      start.setHours(0, 0, 0, 0);
+      queryBuilder.andWhere('absence.createdAt >= :start', { start });
+    }
+
+    if (pageOptionsDto.endDate) {
+      const end = new Date(pageOptionsDto.endDate);
+      end.setHours(23, 59, 59, 999);
+      queryBuilder.andWhere('absence.createdAt <= :end', { end });
+    }
+
     const [items, pageMetaDto] = await queryBuilder.paginate(pageOptionsDto);
 
     return items.toPageDto(pageMetaDto);
@@ -151,5 +167,29 @@ export class AbsenceService {
       .orderBy('absence.createdAt', 'DESC');
 
     return queryBuilder.getMany();
+  }
+
+  async getAllAbsence(
+    pageOptionsDto: AbsencePageOptionsDto,
+  ): Promise<PageDto<AbsenceDto>> {
+    const queryBuilder = this.absenceRepository
+      .createQueryBuilder('absence')
+      .leftJoinAndSelect('absence.user', 'user');
+
+    if (pageOptionsDto.startDate) {
+      const start = new Date(pageOptionsDto.startDate);
+      start.setHours(0, 0, 0, 0);
+      queryBuilder.andWhere('absence.createdAt >= :start', { start });
+    }
+
+    if (pageOptionsDto.endDate) {
+      const end = new Date(pageOptionsDto.endDate);
+      end.setHours(23, 59, 59, 999);
+      queryBuilder.andWhere('absence.createdAt <= :end', { end });
+    }
+
+    const [items, pageMetaDto] = await queryBuilder.paginate(pageOptionsDto);
+
+    return items.toPageDto(pageMetaDto);
   }
 }

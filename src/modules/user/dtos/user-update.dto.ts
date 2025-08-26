@@ -1,7 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Matches, ValidateIf } from 'class-validator';
 
+import { RoleType } from '../../../constants/role-type.ts';
 import {
+  EmailFieldOptional,
+  EnumFieldOptional,
   PasswordFieldOptional,
   PhoneFieldOptional,
   StringFieldOptional,
@@ -34,11 +37,31 @@ export class UserUpdateDto {
   password?: string | null;
 
   @StringFieldOptional({
-    description: 'Avatar URL (no spaces allowed)',
-    example: 'avatar.jpg',
-    pattern: String.raw`^[^\s]+$`,
+    description: 'Name',
+    example: 'John Doe',
   })
-  avatar?: string | null;
+  name?: string | null;
+
+  @StringFieldOptional({
+    description: 'Position',
+    example: 'Software Engineer',
+  })
+  position?: string | null;
+
+  @EmailFieldOptional({
+    description: 'Email',
+    example: 'john.doe@example.com',
+  })
+  email?: string | null;
+
+  @EnumFieldOptional(() => RoleType)
+  @ApiProperty({
+    description: 'Role',
+    enum: RoleType,
+    required: false,
+    nullable: true,
+  })
+  role?: RoleType | null;
 
   @StringFieldOptional({
     description: 'Password confirmation (must match password when provided)',

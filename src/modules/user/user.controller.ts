@@ -19,7 +19,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiResponse, ApiTags } from '@nestjs/swagger';
 
-import { PageDto } from '../../common/dto/page.dto.ts';
+import type { PageDto } from '../../common/dto/page.dto.ts';
 import { RoleType } from '../../constants/role-type.ts';
 import { ApiPageResponse } from '../../decorators/api-page-response.decorator.ts';
 import { AuthUser } from '../../decorators/auth-user.decorator.ts';
@@ -64,10 +64,7 @@ export class UserController {
   @Get()
   @Auth([RoleType.ADMIN])
   @HttpCode(HttpStatus.OK)
-  @ApiPageResponse({
-    description: 'Get users list',
-    type: PageDto,
-  })
+  @ApiPageResponse({ type: UserDto })
   /**
    * Retrieves a paginated list of users.
    *
@@ -77,8 +74,7 @@ export class UserController {
    *   metadata.
    */
   getUsers(
-    @Query(new ValidationPipe({ transform: true }))
-    pageOptionsDto: UsersPageOptionsDto,
+    @Query() pageOptionsDto: UsersPageOptionsDto,
   ): Promise<PageDto<UserDto>> {
     return this.userService.getUsers(pageOptionsDto);
   }
@@ -102,11 +98,7 @@ export class UserController {
     @UUIDParam('id') userId: Uuid,
     @AuthUser() authUser: UserEntity,
   ): Promise<UserDto> {
-    // Only admins can update any user; regular users can only update themselves
-    console.info('userId', userId);
-
     if (authUser.role !== RoleType.ADMIN && authUser.id !== userId) {
-      // Forbidden
       throw new ForbiddenException('You can only get detail your own account');
     }
 
@@ -140,9 +132,7 @@ export class UserController {
     @Body(new ValidationPipe({ transform: true }))
     userUpdateDto: UserUpdateDto,
   ): Promise<UserDto> {
-    // Only admins can update any user; regular users can only update themselves
     if (authUser.role !== RoleType.ADMIN && authUser.id !== userId) {
-      // Forbidden
       throw new ForbiddenException('You can only update your own account');
     }
 
@@ -201,7 +191,7 @@ export class UserController {
    *   image, and must not exceed 2MB in size.
    * @returns A UserDto object containing the updated user's data.
    */
-  updateUserAvatar(
+  async updateUserAvatar(
     @UUIDParam('id') userId: Uuid,
     @AuthUser() authUser: UserEntity,
     @UploadedFile(
@@ -217,6 +207,25 @@ export class UserController {
   ): Promise<UserDto> {
     if (authUser.role !== RoleType.ADMIN && authUser.id !== userId) {
       throw new ForbiddenException('You can only update your own avatar');
+    }
+
+    // Send push notification when a regular user updates their own profile
+    // Topic format: user.<ROLE>
+    if (authUser.role === RoleType.USER && authUser.id === userId) {
+      try {
+        // Lazy import to avoid hard dependency here
+        const { FirebaseService: firebaseService } = await import(
+          '../firebase/firebase.service.ts'
+        );
+        const firebase = new firebaseService();
+        await firebase.sendTopicNotification(
+          `user.ADMIN`,
+          `Avatar picture of ${authUser.name} updated`,
+          'Avatar picture was updated successfully.',
+        );
+      } catch {
+        console.error('Failed to send push notification');
+      }
     }
 
     return this.userService.updateUserAvatar(userId, file);

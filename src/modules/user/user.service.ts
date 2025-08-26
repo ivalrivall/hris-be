@@ -93,67 +93,41 @@ export class UserService {
   async getUsers(
     pageOptionsDto: UsersPageOptionsDto,
   ): Promise<PageDto<UserDto>> {
-    const queryBuilder = this.userRepository.createQueryBuilder('user');
-    const [items, pageMetaDto] = await queryBuilder.paginate(pageOptionsDto);
+    const queryBuilder = this.userRepository
+      .createQueryBuilder('user')
+      // Only select basic columns to keep the payload minimal
+      .select([
+        'user.id',
+        'user.name',
+        'user.email',
+        'user.role',
+        'user.avatar',
+        'user.position',
+        'user.phone',
+        'user.createdAt',
+        'user.updatedAt',
+      ])
+      .orderBy('user.createdAt', 'DESC');
 
-    // Fetch last absence per user for the current page (Postgres DISTINCT ON)
-    const ids = items.map((u) => u.id);
-    let lastInByUserIdDto: Record<
-      string,
-      ReturnType<AbsenceEntity['toDto']>
-    > = {};
-    let lastOutByUserIdDto: Record<
-      string,
-      ReturnType<AbsenceEntity['toDto']>
-    > = {};
-
-    if (ids.length > 0) {
-      const [lastIns, lastOuts] = await Promise.all([
-        this.absenceRepository
-          .createQueryBuilder('a')
-          .where('a.userId IN (:...ids)', { ids })
-          .andWhere('a.status = :status', { status: AbsenceStatus.IN })
-          .distinctOn(['a.userId'])
-          .orderBy('a.userId', 'ASC')
-          .addOrderBy('a.createdAt', 'DESC')
-          .getMany(),
-        this.absenceRepository
-          .createQueryBuilder('a')
-          .where('a.userId IN (:...ids)', { ids })
-          .andWhere('a.status = :status', { status: AbsenceStatus.OUT })
-          .distinctOn(['a.userId'])
-          .orderBy('a.userId', 'ASC')
-          .addOrderBy('a.createdAt', 'DESC')
-          .getMany(),
-      ]);
-
-      // Build maps without reduce for readability
-      lastInByUserIdDto = {};
-
-      for (const a of lastIns) {
-        lastInByUserIdDto[a.userId] = a.toDto();
-      }
-
-      lastOutByUserIdDto = {};
-
-      for (const a of lastOuts) {
-        lastOutByUserIdDto[a.userId] = a.toDto();
-      }
+    // Single-parameter search `q` across name, email, position, and role
+    if (pageOptionsDto.q) {
+      const q = `%${pageOptionsDto.q}%`;
+      queryBuilder.andWhere(
+        '(user.name ILIKE :q OR user.email ILIKE :q OR user.position ILIKE :q OR "user"."role"::text ILIKE :q)',
+        { q },
+      );
     }
 
-    return items.toPageDto(pageMetaDto, {
-      lastInByUserIdDto,
-      lastOutByUserIdDto,
-    });
+    const [items, pageMetaDto] = await queryBuilder.paginate(pageOptionsDto);
+
+    // Return without last IN/OUT augmentation to keep basic fields only
+    return items.toPageDto(pageMetaDto);
   }
 
-  // Calculate totals since user createdAt:
-  // - totalWorkDay: count of Mon–Fri days from createdAt to today
-  // - totalPresence: days with at least one IN
-  // - totalAbsent: working days with no IN
-  // - totalLate: days where first IN after 08:00
   async getUser(userId: Uuid): Promise<UserDto> {
-    const userEntity = await this.userRepository.findOne({ where: { id: userId } });
+    const userEntity = await this.userRepository.findOne({
+      where: { id: userId },
+    });
 
     if (!userEntity) {
       throw new UserNotFoundException();
@@ -166,32 +140,53 @@ export class UserService {
       .orderBy('a.createdAt', 'ASC')
       .getMany();
 
-    // Map of YYYY-MM-DD -> first IN Date for that day (weekdays only)
-    const firstInByDay = new Map<string, Date>();
+    const firstInByDay = this.buildFirstInByDay(absences);
+    const { totalWorkDay, totalPresence, totalAbsent, totalLate } =
+      this.computeAttendanceMetrics(userEntity.createdAt, firstInByDay);
 
-    const fmt = (d: Date): string => {
-      const y = d.getFullYear();
-      const m = (d.getMonth() + 1).toString().padStart(2, '0');
-      const dd = d.getDate().toString().padStart(2, '0');
-      return `${y}-${m}-${dd}`;
-    };
+    return userEntity.toDto({
+      totalWorkDay,
+      totalPresence,
+      totalAbsent,
+      totalLate,
+    } as never);
+  }
+
+  // Build map of YYYY-MM-DD -> first IN Date for that day (weekdays only)
+  private buildFirstInByDay(absences: AbsenceEntity[]): Map<string, Date> {
+    const firstInByDay = new Map<string, Date>();
 
     for (const a of absences) {
       const d = a.createdAt;
-      const dow = d.getDay(); // 0=Sun,6=Sat
-      if (dow === 0 || dow === 6) continue; // Exclude weekends
+
+      if (this.isWeekend(d)) {
+        continue;
+      }
 
       if (a.status === AbsenceStatus.IN) {
-        const key = fmt(d);
+        const key = this.formatDateKey(d);
         const prev = firstInByDay.get(key);
+
         if (!prev || d < prev) {
           firstInByDay.set(key, d);
         }
       }
     }
 
-    // Count working days from user.createdAt to today (inclusive)
-    const start = new Date(userEntity.createdAt);
+    return firstInByDay;
+  }
+
+  // Calculate totals from user.createdAt to today (inclusive)
+  private computeAttendanceMetrics(
+    userCreatedAt: Date,
+    firstInByDay: Map<string, Date>,
+  ): {
+    totalWorkDay: number;
+    totalPresence: number;
+    totalAbsent: number;
+    totalLate: number;
+  } {
+    const start = new Date(userCreatedAt);
     start.setHours(0, 0, 0, 0);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -202,35 +197,48 @@ export class UserService {
     let totalLate = 0;
 
     for (
-      const d = new Date(start.getTime());
+      const d = new Date(start);
       d.getTime() <= today.getTime();
       d.setDate(d.getDate() + 1)
     ) {
-      const dow = d.getDay();
-      if (dow === 0 || dow === 6) continue; // skip weekends
+      if (this.isWeekend(d)) {
+        continue;
+      }
 
       totalWorkDay++;
-      const key = fmt(d);
+      const key = this.formatDateKey(d);
       const firstIn = firstInByDay.get(key);
-      if (firstIn) {
-        totalPresence++;
-        // Late if first IN strictly after 08:00:00 local time (Asia/Jakarta)
-        const threshold = new Date(firstIn);
-        threshold.setHours(8, 0, 0, 0);
-        if (firstIn.getTime() > threshold.getTime()) {
-          totalLate++;
-        }
-      } else {
+
+      if (!firstIn) {
         totalAbsent++;
+        continue;
+      }
+
+      totalPresence++;
+      // Late if first IN strictly after 08:00:00 local time (Asia/Jakarta)
+      const threshold = new Date(firstIn);
+      threshold.setHours(8, 0, 0, 0);
+
+      if (firstIn.getTime() > threshold.getTime()) {
+        totalLate++;
       }
     }
 
-    return userEntity.toDto({
-      totalWorkDay,
-      totalPresence,
-      totalAbsent,
-      totalLate,
-    } as never);
+    return { totalWorkDay, totalPresence, totalAbsent, totalLate };
+  }
+
+  private isWeekend(d: Date): boolean {
+    const dow = d.getDay(); // 0=Sun,6=Sat
+
+    return dow === 0 || dow === 6;
+  }
+
+  private formatDateKey(d: Date): string {
+    const y = d.getFullYear();
+    const m = (d.getMonth() + 1).toString().padStart(2, '0');
+    const dd = d.getDate().toString().padStart(2, '0');
+
+    return `${y}-${m}-${dd}`;
   }
 
   async getUserWithLastAbsence(userId: Uuid): Promise<UserDto> {
@@ -304,6 +312,18 @@ export class UserService {
       userEntity.password = updateUserDto.password;
     }
 
+    if (updateUserDto.role) {
+      userEntity.role = updateUserDto.role;
+    }
+
+    if (updateUserDto.email) {
+      userEntity.email = updateUserDto.email;
+    }
+
+    if (updateUserDto.position) {
+      userEntity.position = updateUserDto.position;
+    }
+
     await this.userRepository.save(userEntity);
 
     const payload = {
@@ -341,6 +361,21 @@ export class UserService {
 
     userEntity.avatar = await this.awsS3Service.uploadImage(file);
     await this.userRepository.save(userEntity);
+
+    const payload = {
+      id: userEntity.id,
+      type: 'user.updated',
+      at: new Date().toISOString(),
+    };
+    this.userEventsClient
+      .emit('user.updated', { ...payload, user: userEntity.toDto() })
+      .subscribe({
+        error: () => {
+          this.logger.error('Failed to emit user.updated event', {
+            userId: userEntity.id,
+          });
+        },
+      });
 
     return userEntity.toDto();
   }
