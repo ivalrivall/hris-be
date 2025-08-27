@@ -11,7 +11,6 @@ export class AbsenceDto extends AbstractDto {
   @ApiProperty({ enum: AbsenceStatus })
   status: AbsenceStatus;
 
-  // Optional: expose user's name and position for listing
   @ApiProperty({ required: false, nullable: true })
   userName?: string | null;
 
@@ -23,7 +22,6 @@ export class AbsenceDto extends AbstractDto {
     this.userId = absenceEntity.userId;
     this.status = absenceEntity.status;
 
-    // Filled only when relation is joined in queries
     this.userName = absenceEntity.user.name ?? null;
     this.userPosition = absenceEntity.user.position ?? null;
   }

@@ -29,6 +29,7 @@ import {
   UUIDParam,
 } from '../../decorators/http.decorators.ts';
 import type { IFile } from '../../interfaces/IFile';
+import { FirebaseService } from '../firebase/firebase.service.ts';
 import { CreateUserDto } from './dtos/create-user.dto.ts';
 import { UserDto } from './dtos/user.dto.ts';
 import { UserUpdateDto } from './dtos/user-update.dto.ts';
@@ -39,7 +40,10 @@ import { UserService } from './user.service.ts';
 @Controller('v1/users')
 @ApiTags('users')
 export class UserController {
-  constructor(@Inject(UserService) private userService: UserService) {}
+  constructor(
+    private userService: UserService,
+    @Inject(FirebaseService) private readonly firebaseService: FirebaseService,
+  ) {}
 
   @Post()
   @Auth([RoleType.ADMIN])
@@ -136,28 +140,20 @@ export class UserController {
       throw new ForbiddenException('You can only update your own account');
     }
 
-    const updated = await this.userService.updateUser(userId, userUpdateDto);
+    const user = await this.userService.updateUser(userId, userUpdateDto);
 
-    // Send push notification when a regular user updates their own profile
-    // Topic format: user.<ROLE>
-    if (authUser.role === RoleType.USER && authUser.id === userId) {
-      try {
-        // Lazy import to avoid hard dependency here
-        const { FirebaseService: firebaseService } = await import(
-          '../firebase/firebase.service.ts'
-        );
-        const firebase = new firebaseService();
-        await firebase.sendTopicNotification(
-          `user.ADMIN`,
-          `Profile of ${authUser.name} updated`,
-          'Profile information was updated successfully.',
-        );
-      } catch {
-        console.error('Failed to send push notification');
-      }
+    // Send topic notification to user.ADMIN on profile update
+    try {
+      await this.firebaseService.sendTopicNotification(
+        'user.ADMIN',
+        `Profile of ${authUser.name} updated`,
+        'Profile information was updated successfully.',
+      );
+    } catch (error) {
+      console.error('Failed to send push notification', error);
     }
 
-    return updated;
+    return user;
   }
 
   @Patch(':id/avatar')
@@ -209,6 +205,8 @@ export class UserController {
       throw new ForbiddenException('You can only update your own avatar');
     }
 
+    const user = await this.userService.updateUserAvatar(userId, file);
+
     // Send push notification when a regular user updates their own profile
     // Topic format: user.<ROLE>
     if (authUser.role === RoleType.USER && authUser.id === userId) {
@@ -228,6 +226,6 @@ export class UserController {
       }
     }
 
-    return this.userService.updateUserAvatar(userId, file);
+    return user;
   }
 }

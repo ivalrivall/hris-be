@@ -16,7 +16,7 @@ export class FirebaseController {
   async subscribeToTopic(
     @Param('topic') topic: string,
     @Body('token') token: string,
-  ): Promise<string> {
+  ): Promise<{ message: string }> {
     // Subscribe a device token to a Firebase topic
     const isOk = await this.firebaseService.subscribeTokenToTopic(token, topic);
 
@@ -24,14 +24,14 @@ export class FirebaseController {
       throw new BadRequestException('Failed to subscribe token to topic');
     }
 
-    return `Subscribed to topic ${topic} successfully`;
+    return { message: `Subscribed to topic ${topic} successfully` };
   }
 
   @Post(':topic/unsubscribe')
   async unsubscribeFromTopic(
     @Param('topic') topic: string,
     @Body('token') token: string,
-  ): Promise<string> {
+  ): Promise<{ message: string }> {
     // Unsubscribe a device token from a Firebase topic
     const isOk = await this.firebaseService.unsubscribeTokenFromTopic(
       token,
@@ -42,7 +42,7 @@ export class FirebaseController {
       throw new BadRequestException('Failed to unsubscribe token from topic');
     }
 
-    return `Unsubscribed from topic ${topic} successfully`;
+    return { message: `Unsubscribed from topic ${topic} successfully` };
   }
 
   @Post(':topic/send')

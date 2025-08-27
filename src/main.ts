@@ -30,7 +30,11 @@ import { ApiConfigService } from './shared/services/api-config.service.ts';
 import { SharedModule } from './shared/shared.module.ts';
 
 export async function bootstrap(): Promise<NestExpressApplication> {
-  initializeTransactionalContext();
+  // Initialize transactional CLS context only once (prevents HMR/SSR re-init)
+  if (!(globalThis as any).__tx_ctx_initialized) {
+    initializeTransactionalContext();
+    (globalThis as any).__tx_ctx_initialized = true;
+  }
 
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule,
@@ -47,8 +51,17 @@ export async function bootstrap(): Promise<NestExpressApplication> {
     },
   );
 
-  // Register TypeORM DataSource for typeorm-transactional
-  addTransactionalDataSource(app.get(DataSource));
+  // Register TypeORM DataSource for typeorm-transactional (only once)
+  try {
+    if (!(globalThis as any).__tx_ds_registered) {
+      addTransactionalDataSource(app.get(DataSource));
+      (globalThis as any).__tx_ds_registered = true;
+    }
+  } catch {
+    // Ignore duplicate registration errors during HMR/SSR
+    // Useful when Vite re-evaluates module multiple times
+  }
+
   app.enable('trust proxy'); // only if you're behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, etc)
   app.use(helmet());
   // app.setGlobalPrefix('/api'); use api as global prefix if you don't have subdomain
@@ -108,4 +121,7 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   return app;
 }
 
-export const viteNodeApp = await bootstrap();
+// Avoid re-creating the app on module hot reloads during SSR
+export const viteNodeApp = (globalThis as any).__vite_node_app
+  ? (globalThis as any).__vite_node_app
+  : ((globalThis as any).__vite_node_app = await bootstrap());

@@ -233,13 +233,17 @@ export class FirebaseService {
     }
 
     try {
+      options.title = 'Test Title';
+      options.body = 'Test Body';
       const message: Message = {
         ...this.buildMessageBase(options),
         topic,
       };
 
+      this.logger.log('message', message);
+
       const id = await messaging.send(message);
-      this.logger.log(`Notification sent to topic ${topic}`);
+      this.logger.log(`Notification sent to topic ${topic} with id ${id}`);
 
       return id;
     } catch (error) {
