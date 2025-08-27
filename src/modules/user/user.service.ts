@@ -288,27 +288,6 @@ export class UserService {
     }
 
     if (updateUserDto.password != null) {
-      if (updateUserDto.confirmPassword == null) {
-        throw new UnprocessableEntityException([
-          {
-            property: 'confirmPassword',
-            constraints: {
-              isDefined:
-                'confirmPassword must be provided when password is set',
-            },
-          },
-        ] as unknown as any);
-      }
-
-      if (updateUserDto.password !== updateUserDto.confirmPassword) {
-        throw new UnprocessableEntityException([
-          {
-            property: 'confirmPassword',
-            constraints: { sameAs: 'confirmPassword must match password' },
-          },
-        ] as unknown as any);
-      }
-
       userEntity.password = updateUserDto.password;
     }
 

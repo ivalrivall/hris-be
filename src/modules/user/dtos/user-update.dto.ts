@@ -62,12 +62,4 @@ export class UserUpdateDto {
     nullable: true,
   })
   role?: RoleType | null;
-
-  @StringFieldOptional({
-    description: 'Password confirmation (must match password when provided)',
-    example: 'Newpass123',
-  })
-  @ValidateIf((o) => o.password != null)
-  @SameAs('password', { message: 'confirmPassword must match password' })
-  confirmPassword?: string;
 }

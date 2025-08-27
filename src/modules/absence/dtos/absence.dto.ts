@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import { ApiProperty } from '@nestjs/swagger';
 
 import { AbstractDto } from '../../../common/dto/abstract.dto.ts';
@@ -22,7 +23,7 @@ export class AbsenceDto extends AbstractDto {
     this.userId = absenceEntity.userId;
     this.status = absenceEntity.status;
 
-    this.userName = absenceEntity.user.name ?? null;
-    this.userPosition = absenceEntity.user.position ?? null;
+    this.userName = absenceEntity.user?.name ?? null;
+    this.userPosition = absenceEntity.user?.position ?? null;
   }
 }
