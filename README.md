@@ -21,7 +21,7 @@ And, enjoy :)
 ### Scripts
 
 ```bash
-# 4. Run development server and open http://localhost:3000
+# 4. Run development server and open http://localhost:30019
 yarn start:dev
 
 # 5. Read the documentation linked below for "Setup and development".
@@ -124,7 +124,7 @@ And you will see the generated file in `dist` that is ready to be served.
   <dd>development, staging and production environment configurations</dd>
 
   <dt><b>Swagger Api Documentation</b></dt>
-  <dd>Already integrated API documentation. To see all available endpoints visit http://localhost:3000/documentation</dd>
+  <dd>Already integrated API documentation. To see all available endpoints visit http://localhost:30019/documentation</dd>
 
   <dt><b>Node, Bun, Deno</b></dt>
   <dd>Support for Node, Bun, and Deno. You can run, build, and test your application using any of these runtime.</dd>

@@ -11,7 +11,7 @@ import { SnakeNamingStrategy } from '../../snake-naming.strategy.ts';
 
 @Injectable()
 export class ApiConfigService {
-  constructor(@Inject(ConfigService) private configService: ConfigService) { }
+  constructor(@Inject(ConfigService) private configService: ConfigService) {}
 
   get isDevelopment(): boolean {
     return this.nodeEnv === 'development';
@@ -164,6 +164,31 @@ export class ApiConfigService {
     return {
       port: this.getString('PORT'),
     };
+  }
+
+  get rabbitmqConfig() {
+    const urlsRaw = this.configService.get<string>('RABBITMQ_URLS');
+    // Support single URL via RABBITMQ_URL as fallback
+    const singleUrl = this.configService.get<string>('RABBITMQ_URL');
+
+    const urls = (urlsRaw ?? singleUrl ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (urls.length === 0) {
+      throw new Error(
+        'RABBITMQ_URLS or RABBITMQ_URL environment variable must be set',
+      );
+    }
+
+    const queue = this.getString('RABBITMQ_QUEUE');
+
+    return {
+      urls,
+      queue,
+      queueOptions: { durable: true },
+    } as const;
   }
 
   private get(key: string): string {

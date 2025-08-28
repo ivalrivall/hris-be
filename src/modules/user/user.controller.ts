@@ -13,14 +13,13 @@ import {
   Post,
   Query,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
   ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiResponse, ApiTags } from '@nestjs/swagger';
 
-import { PageDto } from '../../common/dto/page.dto.ts';
+import type { PageDto } from '../../common/dto/page.dto.ts';
 import { RoleType } from '../../constants/role-type.ts';
 import { ApiPageResponse } from '../../decorators/api-page-response.decorator.ts';
 import { AuthUser } from '../../decorators/auth-user.decorator.ts';
@@ -29,10 +28,8 @@ import {
   Auth,
   UUIDParam,
 } from '../../decorators/http.decorators.ts';
-import { Roles } from '../../decorators/roles.decorator.ts';
-// import { AuthGuard } from '../../guards/auth.guard';
-import { RolesGuard } from '../../guards/roles.guard';
 import type { IFile } from '../../interfaces/IFile';
+import { FirebaseService } from '../firebase/firebase.service.ts';
 import { CreateUserDto } from './dtos/create-user.dto.ts';
 import { UserDto } from './dtos/user.dto.ts';
 import { UserUpdateDto } from './dtos/user-update.dto.ts';
@@ -43,7 +40,10 @@ import { UserService } from './user.service.ts';
 @Controller('v1/users')
 @ApiTags('users')
 export class UserController {
-  constructor(@Inject(UserService) private userService: UserService) {}
+  constructor(
+    private userService: UserService,
+    @Inject(FirebaseService) private readonly firebaseService: FirebaseService,
+  ) {}
 
   @Post()
   @Auth([RoleType.ADMIN])
@@ -68,10 +68,7 @@ export class UserController {
   @Get()
   @Auth([RoleType.ADMIN])
   @HttpCode(HttpStatus.OK)
-  @ApiPageResponse({
-    description: 'Get users list',
-    type: PageDto,
-  })
+  @ApiPageResponse({ type: UserDto })
   /**
    * Retrieves a paginated list of users.
    *
@@ -81,16 +78,13 @@ export class UserController {
    *   metadata.
    */
   getUsers(
-    @Query(new ValidationPipe({ transform: true }))
-    pageOptionsDto: UsersPageOptionsDto,
+    @Query() pageOptionsDto: UsersPageOptionsDto,
   ): Promise<PageDto<UserDto>> {
     return this.userService.getUsers(pageOptionsDto);
   }
 
   @Get(':id')
-  @Auth([RoleType.ADMIN])
-  @Roles(RoleType.ADMIN)
-  @UseGuards(RolesGuard)
+  @Auth([RoleType.ADMIN, RoleType.USER])
   @HttpCode(HttpStatus.OK)
   @ApiUUIDParam('id')
   @ApiResponse({
@@ -104,7 +98,14 @@ export class UserController {
    * @param userId The unique identifier of the user to retrieve.
    * @returns A UserDto object containing the user's data.
    */
-  getUser(@UUIDParam('id') userId: Uuid): Promise<UserDto> {
+  getUser(
+    @UUIDParam('id') userId: Uuid,
+    @AuthUser() authUser: UserEntity,
+  ): Promise<UserDto> {
+    if (authUser.role !== RoleType.ADMIN && authUser.id !== userId) {
+      throw new ForbiddenException('You can only get detail your own account');
+    }
+
     return this.userService.getUser(userId);
   }
 
@@ -135,13 +136,24 @@ export class UserController {
     @Body(new ValidationPipe({ transform: true }))
     userUpdateDto: UserUpdateDto,
   ): Promise<UserDto> {
-    // Only admins can update any user; regular users can only update themselves
     if (authUser.role !== RoleType.ADMIN && authUser.id !== userId) {
-      // Forbidden
       throw new ForbiddenException('You can only update your own account');
     }
 
-    return this.userService.updateUser(userId, userUpdateDto);
+    const user = await this.userService.updateUser(userId, userUpdateDto);
+
+    // Send topic notification to user.ADMIN on profile update
+    try {
+      await this.firebaseService.sendTopicNotification(
+        'user.ADMIN',
+        `Profile of ${authUser.name} updated`,
+        'Profile information was updated successfully.',
+      );
+    } catch (error) {
+      console.error('Failed to send push notification', error);
+    }
+
+    return user;
   }
 
   @Patch(':id/avatar')
@@ -175,7 +187,7 @@ export class UserController {
    *   image, and must not exceed 2MB in size.
    * @returns A UserDto object containing the updated user's data.
    */
-  updateUserAvatar(
+  async updateUserAvatar(
     @UUIDParam('id') userId: Uuid,
     @AuthUser() authUser: UserEntity,
     @UploadedFile(
@@ -193,6 +205,27 @@ export class UserController {
       throw new ForbiddenException('You can only update your own avatar');
     }
 
-    return this.userService.updateUserAvatar(userId, file);
+    const user = await this.userService.updateUserAvatar(userId, file);
+
+    // Send push notification when a regular user updates their own profile
+    // Topic format: user.<ROLE>
+    if (authUser.role === RoleType.USER && authUser.id === userId) {
+      try {
+        // Lazy import to avoid hard dependency here
+        const { FirebaseService: firebaseService } = await import(
+          '../firebase/firebase.service.ts'
+        );
+        const firebase = new firebaseService();
+        await firebase.sendTopicNotification(
+          `user.ADMIN`,
+          `Avatar picture of ${authUser.name} updated`,
+          'Avatar picture was updated successfully.',
+        );
+      } catch {
+        console.error('Failed to send push notification');
+      }
+    }
+
+    return user;
   }
 }

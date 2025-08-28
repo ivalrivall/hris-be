@@ -377,7 +377,7 @@ describe('UserService', () => {
 ```typescript
 export class ApiConfigService {
   get corsOrigins(): string[] {
-    return this.getString('CORS_ORIGINS')?.split(',') || ['http://localhost:3000'];
+    return this.getString('CORS_ORIGINS')?.split(',') || ['http://localhost:30019'];
   }
 
   get throttlerConfigs(): ThrottlerOptions {

@@ -14,7 +14,7 @@ RUN yarn install --prod
 
 FROM node:lts
 
-ARG PORT=3000
+ARG PORT=30019
 
 ENV NODE_ENV=production
 

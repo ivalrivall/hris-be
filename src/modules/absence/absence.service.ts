@@ -6,14 +6,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 
-import { RoleType } from '../../constants/role-type.ts';
 import type { PageDto } from '../../common/dto/page.dto.ts';
+import { RoleType } from '../../constants/role-type.ts';
+import { UserEntity } from '../user/user.entity.ts';
 import { AbsenceEntity } from './absence.entity.ts';
 import { AbsenceDto } from './dtos/absence.dto.ts';
 import type { AbsencePageOptionsDto } from './dtos/absence-page-options.dto.ts';
 import type { CreateAbsenceDto } from './dtos/create-absence.dto.ts';
 import type { UpdateAbsenceDto } from './dtos/update-absence.dto.ts';
-import { UserEntity } from '../user/user.entity.ts';
 
 @Injectable()
 export class AbsenceService {
@@ -74,10 +74,26 @@ export class AbsenceService {
     return this.absenceRepository.save(absence);
   }
 
-  async getAllAbsence(
+  async getAllAbsenceOfUser(
+    userId: Uuid,
     pageOptionsDto: AbsencePageOptionsDto,
   ): Promise<PageDto<AbsenceDto>> {
-    const queryBuilder = this.absenceRepository.createQueryBuilder('absence');
+    const queryBuilder = this.absenceRepository
+      .createQueryBuilder('absence')
+      .where('absence.userId = :userId', { userId });
+
+    if (pageOptionsDto.startDate) {
+      const start = new Date(pageOptionsDto.startDate);
+      start.setHours(0, 0, 0, 0);
+      queryBuilder.andWhere('absence.createdAt >= :start', { start });
+    }
+
+    if (pageOptionsDto.endDate) {
+      const end = new Date(pageOptionsDto.endDate);
+      end.setHours(23, 59, 59, 999);
+      queryBuilder.andWhere('absence.createdAt <= :end', { end });
+    }
+
     const [items, pageMetaDto] = await queryBuilder.paginate(pageOptionsDto);
 
     return items.toPageDto(pageMetaDto);
@@ -128,5 +144,52 @@ export class AbsenceService {
     }
 
     await this.absenceRepository.remove(absenceEntity);
+  }
+
+  async getTodayAbsenceForUser(userId: Uuid): Promise<AbsenceEntity[]> {
+    const now = new Date(); // current time in Asia/Jakarta timezone
+
+    // Get the start of today in Asia/Jakarta timezone
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+
+    // Get the end of today in Asia/Jakarta timezone
+    const endOfToday = new Date(now);
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const queryBuilder = this.absenceRepository
+      .createQueryBuilder('absence')
+      .where('absence.userId = :userId', { userId })
+      .andWhere('absence.createdAt BETWEEN :startOfToday AND :endOfToday', {
+        startOfToday,
+        endOfToday,
+      })
+      .orderBy('absence.createdAt', 'DESC');
+
+    return queryBuilder.getMany();
+  }
+
+  async getAllAbsence(
+    pageOptionsDto: AbsencePageOptionsDto,
+  ): Promise<PageDto<AbsenceDto>> {
+    const queryBuilder = this.absenceRepository
+      .createQueryBuilder('absence')
+      .leftJoinAndSelect('absence.user', 'user');
+
+    if (pageOptionsDto.startDate) {
+      const start = new Date(pageOptionsDto.startDate);
+      start.setHours(0, 0, 0, 0);
+      queryBuilder.andWhere('absence.createdAt >= :start', { start });
+    }
+
+    if (pageOptionsDto.endDate) {
+      const end = new Date(pageOptionsDto.endDate);
+      end.setHours(23, 59, 59, 999);
+      queryBuilder.andWhere('absence.createdAt <= :end', { end });
+    }
+
+    const [items, pageMetaDto] = await queryBuilder.paginate(pageOptionsDto);
+
+    return items.toPageDto(pageMetaDto);
   }
 }

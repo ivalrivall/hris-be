@@ -55,7 +55,7 @@ yarn install
 yarn start:dev
 ```
 
-Your application will be available at `http://localhost:3000` and API documentation at `http://localhost:3000/documentation`.
+Your application will be available at `http://localhost:30019` and API documentation at `http://localhost:30019/documentation`.
 
 ## Available Scripts
 
@@ -208,11 +208,11 @@ After creating your project, complete these steps:
   JWT_EXPIRATION_TIME=3600
 
   # Application
-  PORT=3000
+  PORT=30019
   NODE_ENV=development
 
   # CORS
-  CORS_ORIGINS=http://localhost:3000
+  CORS_ORIGINS=http://localhost:30019
   ```
 
 ### 3. Database Setup
@@ -238,11 +238,11 @@ Key environment variables:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `NODE_ENV` | Environment mode | `development` |
-| `PORT` | Application port | `3000` |
+| `PORT` | Application port | `30019` |
 | `DB_HOST` | Database host | `localhost` |
 | `DB_PORT` | Database port | `5432` |
 | `JWT_SECRET` | JWT signing secret | Required |
-| `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:3000` |
+| `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:30019` |
 
 ## Next Steps
 
@@ -252,7 +252,7 @@ Key environment variables:
 
 3. **Code Standards**: Review the [Code Style and Patterns](./code-style-and-patterns.md) for coding conventions and best practices
 
-4. **API Documentation**: Visit `http://localhost:3000/documentation` when running the server to explore the auto-generated Swagger documentation
+4. **API Documentation**: Visit `http://localhost:30019/documentation` when running the server to explore the auto-generated Swagger documentation
 
 5. **Testing**: Learn about testing strategies in the [Testing Guide](./testing.md)
 

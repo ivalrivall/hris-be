@@ -1,8 +1,8 @@
-// Load environment variables
 import dotenv from 'dotenv';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DataSource } from 'typeorm';
+import { SnakeNamingStrategy } from './src/snake-naming.strategy';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = join(__filename, '..');
@@ -18,6 +18,7 @@ const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE,
   entities: ['dist/modules/**/*.entity.js'],
   migrations: ['dist/database/migrations/*.js'],
+  namingStrategy: new SnakeNamingStrategy()
 });
 
 export default AppDataSource;

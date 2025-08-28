@@ -1,39 +1,37 @@
 // src/guards/roles.guard.ts
-import { CanActivate, ExecutionContext } from '@nestjs/common';
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import type { CanActivate, ExecutionContext } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { JwtPayload } from 'jsonwebtoken';
-
-import type { RoleType } from '../constants/role-type.ts';
-import type { UserEntity } from '../modules/user/user.entity.ts';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
+  private readonly logger = new Logger(RolesGuard.name);
+
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    console.log('RolesGuard: Checking roles...');
+    this.logger.log('Checking roles...');
     const requiredRoles = this.reflector.get<string[]>(
       'roles',
       context.getHandler(),
     );
-    console.log('RolesGuard: Required roles:', requiredRoles);
+    this.logger.log('Required roles:', requiredRoles);
 
     if (!requiredRoles) {
-      console.log('RolesGuard: No required roles set');
+      this.logger.log('No required roles set');
 
       return true; // Allow access if no required roles are set
     }
 
     const request = context.switchToHttp().getRequest();
     const user = request.user;
-    console.log('RolesGuard: User:', user);
+    this.logger.log('User:', user);
 
     const userRole = user?.role;
-    console.log('RolesGuard: User role:', userRole);
+    this.logger.log('User role:', userRole);
 
     if (!userRole) {
-      console.log('RolesGuard: User role is not set');
+      this.logger.log('User role is not set');
 
       throw new UnauthorizedException('Unauthorized');
     }

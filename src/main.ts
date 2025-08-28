@@ -16,10 +16,13 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import compression from 'compression';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { initializeTransactionalContext, addTransactionalDataSource } from 'typeorm-transactional';
+import { DataSource } from 'typeorm';
+import {
+  addTransactionalDataSource,
+  initializeTransactionalContext,
+} from 'typeorm-transactional';
 
 import { AppModule } from './app.module.ts';
-import { DataSource } from 'typeorm';
 import { HttpExceptionFilter } from './filters/bad-request.filter.ts';
 import { QueryFailedFilter } from './filters/query-failed.filter.ts';
 import { setupSwagger } from './setup-swagger.ts';
@@ -27,7 +30,11 @@ import { ApiConfigService } from './shared/services/api-config.service.ts';
 import { SharedModule } from './shared/shared.module.ts';
 
 export async function bootstrap(): Promise<NestExpressApplication> {
-  initializeTransactionalContext();
+  // Initialize transactional CLS context only once (prevents HMR/SSR re-init)
+  if (!(globalThis as any).__tx_ctx_initialized) {
+    initializeTransactionalContext();
+    (globalThis as any).__tx_ctx_initialized = true;
+  }
 
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule,
@@ -35,17 +42,26 @@ export async function bootstrap(): Promise<NestExpressApplication> {
     {
       cors: {
         origin: process.env.CORS_ORIGINS?.split(',') ?? [
-          'http://localhost:3000',
+          'http://localhost:30019',
           'http://localhost:5173',
         ],
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
         credentials: true,
       },
     },
   );
 
-  // Register TypeORM DataSource for typeorm-transactional
-  addTransactionalDataSource(app.get(DataSource));
+  // Register TypeORM DataSource for typeorm-transactional (only once)
+  try {
+    if (!(globalThis as any).__tx_ds_registered) {
+      addTransactionalDataSource(app.get(DataSource));
+      (globalThis as any).__tx_ds_registered = true;
+    }
+  } catch {
+    // Ignore duplicate registration errors during HMR/SSR
+    // Useful when Vite re-evaluates module multiple times
+  }
+
   app.enable('trust proxy'); // only if you're behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, etc)
   app.use(helmet());
   // app.setGlobalPrefix('/api'); use api as global prefix if you don't have subdomain
@@ -105,4 +121,7 @@ export async function bootstrap(): Promise<NestExpressApplication> {
   return app;
 }
 
-export const viteNodeApp = bootstrap();
+// Avoid re-creating the app on module hot reloads during SSR
+export const viteNodeApp = (globalThis as any).__vite_node_app
+  ? (globalThis as any).__vite_node_app
+  : ((globalThis as any).__vite_node_app = await bootstrap());

@@ -67,7 +67,7 @@ Create a production `.env` file with the following variables:
 ```env
 # Application
 NODE_ENV=production
-PORT=3000
+PORT=30019
 
 # Database
 DB_TYPE=postgres
@@ -179,7 +179,7 @@ COPY --from=builder --chown=nestjs:nodejs /app/package.json ./
 USER nestjs
 
 # Expose port
-EXPOSE 3000
+EXPOSE 30019
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
@@ -204,7 +204,7 @@ services:
       dockerfile: Dockerfile
       target: production
     ports:
-      - "3000:3000"
+      - "30019:30019"
     environment:
       - NODE_ENV=production
       - DB_HOST=postgres
@@ -341,11 +341,11 @@ module.exports = {
       exec_mode: 'cluster',
       env: {
         NODE_ENV: 'production',
-        PORT: 3000,
+        PORT: 30019,
       },
       env_production: {
         NODE_ENV: 'production',
-        PORT: 3000,
+        PORT: 30019,
       },
       error_file: './logs/err.log',
       out_file: './logs/out.log',
@@ -394,7 +394,7 @@ server {
     server_name yourdomain.com www.yourdomain.com;
 
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:30019;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -463,7 +463,7 @@ eb open
       "image": "your-account.dkr.ecr.region.amazonaws.com/nest-boilerplate:latest",
       "portMappings": [
         {
-          "containerPort": 3000,
+          "containerPort": 30019,
           "protocol": "tcp"
         }
       ],
@@ -773,7 +773,7 @@ import { AppModule } from './app.module';
 async function healthCheck() {
   try {
     const app = await NestFactory.create(AppModule);
-    await app.listen(3000);
+    await app.listen(30019);
     console.log('Health check passed');
     process.exit(0);
   } catch (error) {

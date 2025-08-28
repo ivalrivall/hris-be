@@ -7,12 +7,14 @@ import { TokenType } from '../../constants/token-type.ts';
 import { ApiConfigService } from '../../shared/services/api-config.service.ts';
 import type { UserEntity } from '../user/user.entity.ts';
 import { UserService } from '../user/user.service.ts';
+import { AuthService } from './auth.service.ts';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     @Inject(ApiConfigService) configService: ApiConfigService,
     @Inject(UserService) private userService: UserService,
+    @Inject(AuthService) private authService: AuthService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -24,9 +26,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     userId: Uuid;
     role: RoleType;
     type: TokenType;
+    jti?: string;
   }): Promise<UserEntity> {
     if (args.type !== TokenType.ACCESS_TOKEN) {
       throw new UnauthorizedException();
+    }
+
+    // Check revocation (blacklist) by jti
+    if (this.authService.isTokenRevoked(args.jti)) {
+      throw new UnauthorizedException('Token has been revoked');
     }
 
     // First find user by ID only

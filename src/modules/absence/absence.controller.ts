@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -32,7 +33,7 @@ import { AbsencePageOptionsDto } from './dtos/absence-page-options.dto.ts';
 import { CreateAbsenceDto } from './dtos/create-absence.dto.ts';
 import { UpdateAbsenceDto } from './dtos/update-absence.dto.ts';
 
-@Controller('absences')
+@Controller('v1/absences')
 @ApiTags('absences')
 export class AbsenceController {
   constructor(private absenceService: AbsenceService) {}
@@ -55,11 +56,43 @@ export class AbsenceController {
 
   @Get()
   @Auth([RoleType.ADMIN])
+  @HttpCode(HttpStatus.OK)
   @ApiPageResponse({ type: AbsenceDto })
-  async getAbsences(
+  async getAllAbsences(
     @Query() pageOptionsDto: AbsencePageOptionsDto,
   ): Promise<PageDto<AbsenceDto>> {
     return this.absenceService.getAllAbsence(pageOptionsDto);
+  }
+
+  @Get('user/:id')
+  @Auth([RoleType.ADMIN, RoleType.USER])
+  @HttpCode(HttpStatus.OK)
+  @ApiPageResponse({ type: AbsenceDto })
+  @ApiUUIDParam('id')
+  async getAllAbsencesOfUser(
+    @UUIDParam('id') userId: Uuid,
+    @Query() pageOptionsDto: AbsencePageOptionsDto,
+    @AuthUser() authUser: UserEntity,
+  ): Promise<PageDto<AbsenceDto>> {
+    if (authUser.role !== RoleType.ADMIN && authUser.id !== userId) {
+      throw new ForbiddenException('You can only get detail your own account');
+    }
+
+    return this.absenceService.getAllAbsenceOfUser(userId, pageOptionsDto);
+  }
+
+  @Get('today/me')
+  @Auth([RoleType.USER])
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: [AbsenceDto] })
+  async getTodayAbsenceForCurrentUser(
+    @AuthUser() user: UserEntity,
+  ): Promise<AbsenceDto[]> {
+    const absenceEntities = await this.absenceService.getTodayAbsenceForUser(
+      user.id,
+    );
+
+    return absenceEntities.map((entity) => entity.toDto());
   }
 
   @Get(':id')
