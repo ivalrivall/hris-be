@@ -5,6 +5,7 @@ import {
   Param,
   Post,
 } from '@nestjs/common';
+import { ApiBody } from '@nestjs/swagger';
 
 import { FirebaseService } from './firebase.service';
 
@@ -46,6 +47,22 @@ export class FirebaseController {
   }
 
   @Post(':topic/send')
+  @ApiBody({
+    description: 'Send a push notification to a topic',
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', example: 'Maintenance Notice' },
+        body: { type: 'string', example: 'Scheduled maintenance at 2 AM UTC.' },
+        data: {
+          type: 'object',
+          additionalProperties: { type: 'string' },
+          example: { action: 'open_settings', source: 'admin' },
+        },
+      },
+      required: ['title', 'body'],
+    },
+  })
   async sendToTopicMessage(
     @Param('topic') topic: string,
     @Body('title') title: string,
@@ -57,6 +74,16 @@ export class FirebaseController {
       title,
       body,
       data,
+      // You can add webpush config here for web frontend
+      webpush: {
+        headers: {
+          Urgency: 'high',
+        },
+        notification: {
+          title,
+          body,
+        },
+      },
     });
 
     if (!id) {

@@ -142,9 +142,3 @@ This project includes a `docs` folder with more details on:
 1.  [Naming Cheatsheet](https://narhakobyan.github.io/awesome-nest-boilerplate/docs/naming-cheatsheet.html)
 1.  [Linting](https://narhakobyan.github.io/awesome-nest-boilerplate/docs/linting.html)
 1.  [Code Generation](https://narhakobyan.github.io/awesome-nest-boilerplate/docs/code-generation.html)
-
-## Community
-
-For help, discussion about best practices, or any other conversation that would benefit from being searchable:
-
-[Discuss Awesome NestJS Boilerplate on GitHub](https://github.com/NarHakobyan/awesome-nest-boilerplate/discussions)
