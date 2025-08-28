@@ -1,33 +1,30 @@
 import * as fs from 'node:fs';
-import * as path from 'node:path';
+import path from 'node:path';
 
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  applicationDefault,
-  cert,
-  getApp,
-  getApps,
-  initializeApp,
-  ServiceAccount,
-} from 'firebase-admin/app';
-import {
-  AndroidConfig,
-  ApnsConfig,
-  getMessaging,
-  Message,
-  Messaging,
-  WebpushConfig,
-} from 'firebase-admin/messaging';
+import type { ServiceAccount } from 'firebase-admin/app';
+import { applicationDefault, cert, initializeApp } from 'firebase-admin/app';
+import type { Message } from 'firebase-admin/messaging';
+import { getMessaging, Messaging } from 'firebase-admin/messaging';
 
 // Options for sending a notification. Allows platform-specific overrides.
 interface INotificationOptions {
   title: string;
   body: string;
   data?: Record<string, string>;
-  android?: AndroidConfig;
-  apns?: ApnsConfig;
-  webpush?: WebpushConfig;
+  webpush?: {
+    headers?: Record<string, string>;
+    notification?: {
+      title?: string;
+      body?: string;
+      icon?: string;
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
+  };
 }
+
+type MessageBase = Pick<Message, 'notification' | 'data' | 'webpush'>;
 
 @Injectable()
 export class FirebaseService {
@@ -37,35 +34,10 @@ export class FirebaseService {
 
   constructor() {
     try {
-      // Safely detect if Firebase Admin is already initialized
-      let hasApp = false;
-
-      try {
-        const apps = getApps();
-
-        if (apps && apps.length > 0) {
-          hasApp = true;
-        } else {
-          // Try retrieving default app; will throw if not initialized
-          getApp();
-          hasApp = true;
-        }
-      } catch {
-        hasApp = false;
-      }
-
-      if (hasApp) {
-        // Already initialized elsewhere
-        this.initialized = true;
-
-        return;
-      }
-
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
       let privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
-      // 1) Try local JSON credentials file in repo root
       const localJsonPath = path.resolve(
         process.cwd(),
         'hrisdexagroup-firebase-adminsdk-fbsvc-a117a3f1f8.json',
@@ -73,9 +45,11 @@ export class FirebaseService {
 
       if (!this.initialized && fs.existsSync(localJsonPath)) {
         try {
-          const serviceAccount = JSON.parse(fs.readFileSync(localJsonPath));
+          const fileBuffer = fs.readFileSync(localJsonPath);
+          const fileContent = fileBuffer.toString('utf8');
+          const serviceAccount = JSON.parse(fileContent) as ServiceAccount;
           initializeApp({
-            credential: cert(serviceAccount as ServiceAccount),
+            credential: cert(serviceAccount),
           });
           this.initialized = true;
           this.logger.log(
@@ -153,14 +127,9 @@ export class FirebaseService {
   }
 
   // Build message base with optional platform-specific configs
-  private buildMessageBase(
-    options: INotificationOptions,
-  ): Pick<Message, 'notification' | 'data' | 'android' | 'apns' | 'webpush'> {
-    const { title, body, data, android, apns, webpush } = options;
-
-    const base: Partial<
-      Pick<Message, 'notification' | 'data' | 'android' | 'apns' | 'webpush'>
-    > = {
+  private buildMessageBase(options: INotificationOptions): MessageBase {
+    const { title, body, data, webpush } = options;
+    const base: Partial<Pick<Message, 'notification' | 'data' | 'webpush'>> = {
       notification: { title, body },
     };
 
@@ -168,22 +137,11 @@ export class FirebaseService {
       base.data = data;
     }
 
-    if (android) {
-      base.android = android;
-    }
-
-    if (apns) {
-      base.apns = apns;
-    }
-
     if (webpush) {
       base.webpush = webpush;
     }
 
-    return base as Pick<
-      Message,
-      'notification' | 'data' | 'android' | 'apns' | 'webpush'
-    >;
+    return base as Pick<Message, 'notification' | 'data' | 'webpush'>;
   }
 
   // Send to a specific device token. Returns message ID or null on failure.
@@ -233,8 +191,6 @@ export class FirebaseService {
     }
 
     try {
-      options.title = 'Test Title';
-      options.body = 'Test Body';
       const message: Message = {
         ...this.buildMessageBase(options),
         topic,
@@ -269,8 +225,9 @@ export class FirebaseService {
     topic: string,
     title: string,
     body: string,
+    data?: Record<string, string>,
   ): Promise<void> {
-    await this.sendToTopic(topic, { title, body });
+    await this.sendToTopic(topic, { title, body, data });
   }
 
   // Topic management helpers
